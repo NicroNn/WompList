@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name" translatable="false">WompList</string>
+    <string name="settings_title">Settings</string>
+    <string name="dark_theme">Dark theme</string>
+    <string name="language">Language</string>
+    <string name="english">English</string>
+    <string name="russian">Russian</string>
+    <string name="appearance">Appearance</string>
+    <string name="discover_anime">Discover Anime</string>
+    <string name="search_hint">Search by title…</string>
+    <string name="no_results">No anime found</string>
+    <string name="my_list">My List</string>
+    <string name="status">Status</string>
+    <string name="watching">Watching</string>
+    <string name="planned">Planned</string>
+    <string name="completed">Completed</string>
+    <string name="no_items_in_list">No %s items</string>
+    <string name="member_since">Member since %s</string>
+    <string name="settings">Settings</string>
+    <string name="continue_watching">Continue Watching</string>
+    <string name="nothing_to_continue">Nothing to continue</string>
+    <string name="about">About</string>
+    <string name="episodes">Episodes</string>
+    <string name="recommendations">Recommendations</string>
+    <string name="synopsis">Synopsis</string>
+    <string name="genres">Genres</string>
+    <string name="episodes_count">Episodes: %d</string>
+    <string name="watch">Watch</string>
+    <string name="add_to_list">Add to list</string>
+    <string name="cancel">Cancel</string>
+    <string name="remove_from_list">Remove</string>
+    <string name="select_status">Select list</string>
+    <string name="in_watching">In watching</string>
+    <string name="in_planned">In planned</string>
+    <string name="in_completed">In completed</string>
+</resources>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Настройки</string>
+    <string name="dark_theme">Тёмная тема</string>
+    <string name="language">Язык</string>
+    <string name="english">Английский</string>
+    <string name="russian">Русский</string>
+    <string name="appearance">Внешний вид</string>
+    <string name="discover_anime">Поиск аниме</string>
+    <string name="search_hint">Искать по названию…</string>
+    <string name="no_results">Ничего не нашлось</string>
+    <string name="my_list">Мой список</string>
+    <string name="status">Статус</string>
+    <string name="watching">Смотрю</string>
+    <string name="planned">В планах</string>
+    <string name="completed">Просмотрено</string>
+    <string name="no_items_in_list">Нет %s таких</string>
+    <string name="member_since">Зарегестрирован с %s</string>
+    <string name="settings">Настройки</string>
+    <string name="continue_watching">Продолжить промостр</string>
+    <string name="nothing_to_continue">Нечего продолжить</string>
+    <string name="about">Информация</string>
+    <string name="episodes">Эпизоды</string>
+    <string name="recommendations">Рекомендации</string>
+    <string name="synopsis">Описание</string>
+    <string name="genres">Жанры</string>
+    <string name="episodes_count">Эпизоды: %d</string>
+    <string name="watch">Смотреть</string>
+    <string name="add_to_list">Добавить в список</string>
+    <string name="cancel">Отмена</string>
+    <string name="remove_from_list">Убрать</string>
+    <string name="select_status">Выберите список</string>
+    <string name="in_watching">Смотрю</string>
+    <string name="in_planned">В планах</string>
+    <string name="in_completed">Просмотрено</string>
+</resources>
