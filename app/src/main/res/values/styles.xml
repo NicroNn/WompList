@@ -1,0 +1,17 @@
+<resources>
+    <style name="Theme_WompList_Light" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:colorBackground">#FFF1F3</item>
+        <item name="colorPrimary">#D93C5B</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorOnBackground">#000000</item>
+        <item name="colorOnSurface">#000000</item>
+    </style>
+
+    <style name="Theme_WompList_Dark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:colorBackground">#121212</item>
+        <item name="colorPrimary">#FF4D59</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorOnBackground">#FFFFFF</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+    </style>
+</resources>
