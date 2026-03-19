@@ -75,6 +75,6 @@ dependencies {
 apollo {
     service("shikimori") {
         packageName.set("itmo.alk.womplist.graphql")
-        schemaFile.set(file("src/main/java/itmo/alk/womplist/data/network/apollo/graphql/schema.graphqls"))
+        schemaFile.set(file("src/main/graphql/schema.graphqls"))
     }
 }
