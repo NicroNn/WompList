@@ -20,10 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import itmo.alk.womplist.R
 import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
@@ -36,9 +34,10 @@ import itmo.alk.womplist.data.repository.AnimeStatus
 @Composable
 fun MyListScreen(navController: NavController) {
     val repository = LocalAnimeRepository.current
-    val watchingList by repository.watchingList.collectAsState()
-    val plannedList by repository.plannedList.collectAsState()
-    val completedList by repository.completedList.collectAsState()
+
+    val watchingList by repository.watchingList.collectAsState(initial = emptyList())
+    val plannedList by repository.plannedList.collectAsState(initial = emptyList())
+    val completedList by repository.completedList.collectAsState(initial = emptyList())
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -154,7 +153,8 @@ fun MyListScreen(navController: NavController) {
                     ) {
                         items(status.list) { anime ->
                             AnimeCard(
-                                title = anime.title,
+                                title = anime.russianName ?: anime.name,
+                                posterUrl = anime.posterUrl,
                                 onClick = { navController.navigate("title/${anime.id}") },
                                 type = AnimeCardType.VERTICAL
                             )
@@ -167,7 +167,8 @@ fun MyListScreen(navController: NavController) {
                     ) {
                         items(status.list) { anime ->
                             AnimeCard(
-                                title = anime.title,
+                                title = anime.russianName ?: anime.name,
+                                posterUrl = anime.posterUrl,
                                 onClick = { navController.navigate("title/${anime.id}") },
                                 type = AnimeCardType.HORIZONTAL
                             )
@@ -177,12 +178,4 @@ fun MyListScreen(navController: NavController) {
             }
         }
     }
-}
-
-data class AnimeItem(val title: String, val id: Long)
-
-@Preview
-@Composable
-fun MyListScreenPreview() {
-    MyListScreen(navController = rememberNavController())
 }

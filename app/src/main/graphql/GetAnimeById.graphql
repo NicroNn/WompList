@@ -1,0 +1,23 @@
+query GetAnimeById($id: String!) {
+  animes(ids: $id, limit: 1) {
+    id
+    name
+    russian
+    poster {
+      mainUrl
+      originalUrl
+    }
+    descriptionHtml
+    episodes
+    episodesAired
+    status
+    genres {
+      name
+      russian
+    }
+    score
+    airedOn {
+      year
+    }
+  }
+}

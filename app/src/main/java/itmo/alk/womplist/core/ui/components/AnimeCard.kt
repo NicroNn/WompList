@@ -1,6 +1,5 @@
 package itmo.alk.womplist.core.ui.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -12,11 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import itmo.alk.womplist.R
+import coil.compose.AsyncImage
 
 enum class AnimeCardType {
     HORIZONTAL, VERTICAL
@@ -25,6 +22,7 @@ enum class AnimeCardType {
 @Composable
 fun AnimeCard(
     title: String,
+    posterUrl: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     type: AnimeCardType = AnimeCardType.HORIZONTAL
@@ -48,8 +46,8 @@ fun AnimeCard(
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.womp),
+                AsyncImage(
+                    model = posterUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -65,12 +63,12 @@ fun AnimeCard(
                     modifier = Modifier.weight(1f)
                 )
             }
-        } else if (type == AnimeCardType.VERTICAL) {
+        } else {
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.womp),
+                AsyncImage(
+                    model = posterUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -89,16 +87,4 @@ fun AnimeCard(
             }
         }
     }
-}
-
-@Preview
-@Composable
-fun AnimeCardHorizontalPreview() {
-    AnimeCard(title = "Attack on Titan", onClick = {}, type = AnimeCardType.HORIZONTAL)
-}
-
-@Preview
-@Composable
-fun AnimeCardVerticalPreview() {
-    AnimeCard(title = "Attack on Titan", onClick = {}, type = AnimeCardType.VERTICAL)
 }

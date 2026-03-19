@@ -6,40 +6,41 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import itmo.alk.womplist.R
 import itmo.alk.womplist.core.navigation.Routes
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.data.LocalAnimeRepository
 
 @Composable
 fun ProfileScreen(navController: NavController) {
+    val repository = LocalAnimeRepository.current
+
+    val watchingList by repository.watchingList.collectAsState(initial = emptyList())
+    val plannedList by repository.plannedList.collectAsState(initial = emptyList())
+    val completedList by repository.completedList.collectAsState(initial = emptyList())
+
     val username = "Kostya Karenin"
     val stats = listOf(
-        Triple(stringResource(R.string.watching), 12, Icons.Default.Visibility),
-        Triple(stringResource(R.string.completed), 5, Icons.Default.CheckCircle),
-        Triple(stringResource(R.string.planned), 8, Icons.Default.Schedule)
+        Triple(stringResource(R.string.watching), watchingList.size, Icons.Default.Visibility),
+        Triple(stringResource(R.string.completed), completedList.size, Icons.Default.CheckCircle),
+        Triple(stringResource(R.string.planned), plannedList.size, Icons.Default.Schedule)
     )
-    val continueWatching = listOf(
-        AnimeItem("Attack on Titan", 1),
-        AnimeItem("My Hero Academia", 2)
-    )
+    val continueWatching = watchingList.take(2)
 
     LazyColumn(
         modifier = Modifier
@@ -54,7 +55,7 @@ fun ProfileScreen(navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground), // замените на реальное изображение
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -109,7 +110,8 @@ fun ProfileScreen(navController: NavController) {
         if (continueWatching.isNotEmpty()) {
             items(continueWatching) { anime ->
                 AnimeCard(
-                    title = anime.title,
+                    title = anime.russianName ?: anime.name,
+                    posterUrl = anime.posterUrl,
                     onClick = { navController.navigate("title/${anime.id}") },
                     type = AnimeCardType.HORIZONTAL
                 )
@@ -136,12 +138,4 @@ fun ProfileStatItem(label: String, count: Int, icon: androidx.compose.ui.graphic
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-}
-
-data class AnimeItem(val title: String, val id: Long)
-
-@Preview
-@Composable
-fun ProfileScreenPreview() {
-    ProfileScreen(navController = rememberNavController())
 }

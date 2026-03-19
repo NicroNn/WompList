@@ -1,0 +1,22 @@
+query GetAnimeList($page: PositiveInt, $limit: PositiveInt, $search: String) {
+  animes(page: $page, limit: $limit, search: $search) {
+    id
+    name
+    russian
+    poster {
+      mainUrl
+    }
+    descriptionHtml
+    episodes
+    episodesAired
+    status
+    genres {
+      name
+      russian
+    }
+    score
+    airedOn {
+      year
+    }
+  }
+}

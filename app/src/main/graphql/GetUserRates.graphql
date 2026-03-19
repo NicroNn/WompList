@@ -1,0 +1,14 @@
+query GetUserRates($userId: ID, $status: UserRateStatusEnum, $limit: PositiveInt) {
+  userRates(userId: $userId, status: $status, limit: $limit) {
+    id
+    status
+    anime {
+      id
+      name
+      russian
+      poster {
+        mainUrl
+      }
+    }
+  }
+}
