@@ -33,4 +33,7 @@
     <string name="in_watching">In watching</string>
     <string name="in_planned">In planned</string>
     <string name="in_completed">In completed</string>
+    <string name="rate_title">Rate title</string>
+    <string name="your_rating">Your: %1$d/10</string>
+    <string name="rating_overlay_hint">Drag across stars and release to save</string>
 </resources>

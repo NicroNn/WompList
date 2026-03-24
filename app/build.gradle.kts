@@ -44,6 +44,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -56,8 +57,9 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.foundation)
 
-    implementation("io.coil-kt:coil-compose:2.5.0")
-    implementation("com.apollographql.apollo:apollo-runtime:4.4.2")
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.apollo.runtime)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

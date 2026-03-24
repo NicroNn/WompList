@@ -18,6 +18,11 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -31,7 +36,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import itmo.alk.womplist.R
 import itmo.alk.womplist.data.LocalUserPreferencesRepository
+import itmo.alk.womplist.core.ui.components.BouncingEasterEggOverlay
 import itmo.alk.womplist.core.ui.components.BottomBar
+import itmo.alk.womplist.core.ui.components.EasterEggConfig
+import itmo.alk.womplist.core.ui.components.ScreenCornerType
 import itmo.alk.womplist.feature.home.HomeScreen
 import itmo.alk.womplist.feature.mylist.MyListScreen
 import itmo.alk.womplist.feature.profile.ProfileScreen
@@ -52,25 +60,87 @@ fun AppNavHost() {
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    var overlayTriggerKey by remember { mutableIntStateOf(0) }
+    var overlayScreenType by remember { mutableStateOf(ScreenCornerType.HOME) }
+
+    val triggerSecretOverlay: (ScreenCornerType) -> Unit = { type ->
+        overlayScreenType = type
+        overlayTriggerKey += 1
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        if (isLandscape) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (isLandscape) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = Routes.HOME,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            composable(Routes.HOME) {
+                                HomeScreen(
+                                    navController,
+                                    onSecretTrigger = { triggerSecretOverlay(ScreenCornerType.HOME) }
+                                )
+                            }
+                            composable(Routes.MY_LIST) {
+                                MyListScreen(
+                                    navController,
+                                    onSecretTrigger = { triggerSecretOverlay(ScreenCornerType.MY_LIST) }
+                                )
+                            }
+                            composable(Routes.PROFILE) {
+                                ProfileScreen(
+                                    navController,
+                                    onSecretTrigger = { triggerSecretOverlay(ScreenCornerType.PROFILE) }
+                                )
+                            }
+                            composable(Routes.SETTINGS) { SettingsScreen(settingsViewModel) }
+                            composable(Routes.TITLE) { backStackEntry ->
+                                TitleScreen(
+                                    navController = navController,
+                                    titleId = backStackEntry.arguments?.getString("id")?.toLong() ?: 0L
+                                )
+                            }
+                        }
+                    }
+                    VerticalNavigationRail(navController)
+                }
+            } else {
+                Scaffold(
+                    bottomBar = { BottomBar(navController) },
+                    modifier = Modifier.fillMaxSize()
+                ) { paddingValues ->
                     NavHost(
                         navController = navController,
                         startDestination = Routes.HOME,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.padding(paddingValues)
                     ) {
-                        composable(Routes.HOME) { HomeScreen(navController) }
-                        composable(Routes.MY_LIST) { MyListScreen(navController) }
-                        composable(Routes.PROFILE) { ProfileScreen(navController) }
+                        composable(Routes.HOME) {
+                            HomeScreen(
+                                navController,
+                                onSecretTrigger = { triggerSecretOverlay(ScreenCornerType.HOME) }
+                            )
+                        }
+                        composable(Routes.MY_LIST) {
+                            MyListScreen(
+                                navController,
+                                onSecretTrigger = { triggerSecretOverlay(ScreenCornerType.MY_LIST) }
+                            )
+                        }
+                        composable(Routes.PROFILE) {
+                            ProfileScreen(
+                                navController,
+                                onSecretTrigger = { triggerSecretOverlay(ScreenCornerType.PROFILE) }
+                            )
+                        }
                         composable(Routes.SETTINGS) { SettingsScreen(settingsViewModel) }
                         composable(Routes.TITLE) { backStackEntry ->
                             TitleScreen(
@@ -80,30 +150,13 @@ fun AppNavHost() {
                         }
                     }
                 }
-                VerticalNavigationRail(navController)
             }
-        } else {
-            Scaffold(
-                bottomBar = { BottomBar(navController) },
-                modifier = Modifier.fillMaxSize()
-            ) { paddingValues ->
-                NavHost(
-                    navController = navController,
-                    startDestination = Routes.HOME,
-                    modifier = Modifier.padding(paddingValues)
-                ) {
-                    composable(Routes.HOME) { HomeScreen(navController) }
-                    composable(Routes.MY_LIST) { MyListScreen(navController) }
-                    composable(Routes.PROFILE) { ProfileScreen(navController) }
-                    composable(Routes.SETTINGS) { SettingsScreen(settingsViewModel) }
-                    composable(Routes.TITLE) { backStackEntry ->
-                        TitleScreen(
-                            navController = navController,
-                            titleId = backStackEntry.arguments?.getString("id")?.toLong() ?: 0L
-                        )
-                    }
-                }
-            }
+
+            BouncingEasterEggOverlay(
+                triggerKey = overlayTriggerKey,
+                assetSpec = EasterEggConfig.assetFor(overlayScreenType),
+                onFinished = { overlayTriggerKey = 0 }
+            )
         }
     }
 }

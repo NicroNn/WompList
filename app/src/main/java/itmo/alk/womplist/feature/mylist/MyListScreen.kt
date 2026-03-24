@@ -27,12 +27,17 @@ import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
+import itmo.alk.womplist.core.ui.components.ScreenCornerType
 import itmo.alk.womplist.data.LocalAnimeRepository
 import itmo.alk.womplist.data.repository.AnimeStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyListScreen(navController: NavController) {
+fun MyListScreen(
+    navController: NavController,
+    onSecretTrigger: () -> Unit = {}
+) {
     val repository = LocalAnimeRepository.current
 
     val watchingList by repository.watchingList.collectAsState(initial = emptyList())
@@ -83,11 +88,22 @@ fun MyListScreen(navController: NavController) {
             .systemBarsPadding()
             .padding(horizontal = 16.dp)
     ) {
-        Text(
-            text = stringResource(R.string.my_list),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.my_list),
+                style = MaterialTheme.typography.headlineSmall
+            )
+            ScreenCornerAnimation(
+                type = ScreenCornerType.MY_LIST,
+                onSecretTrigger = onSecretTrigger
+            )
+        }
 
         ExposedDropdownMenuBox(
             expanded = expanded,

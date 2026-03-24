@@ -22,20 +22,22 @@ import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
+import itmo.alk.womplist.core.ui.components.ScreenCornerType
 import itmo.alk.womplist.data.LocalAnimeRepository
-import itmo.alk.womplist.data.repository.AnimeRepository
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    onSecretTrigger: () -> Unit = {}
+) {
     val repository = LocalAnimeRepository.current
     val allAnime by repository.allAnime.collectAsState(initial = emptyList())
 
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<Anime>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
@@ -55,11 +57,22 @@ fun HomeScreen(navController: NavController) {
             .systemBarsPadding()
             .padding(horizontal = 16.dp)
     ) {
-        Text(
-            text = stringResource(R.string.discover_anime),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.discover_anime),
+                style = MaterialTheme.typography.headlineSmall
+            )
+            ScreenCornerAnimation(
+                type = ScreenCornerType.HOME,
+                onSecretTrigger = onSecretTrigger
+            )
+        }
 
         OutlinedTextField(
             value = searchQuery,

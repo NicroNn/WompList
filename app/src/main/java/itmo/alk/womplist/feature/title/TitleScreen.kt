@@ -1,27 +1,78 @@
 package itmo.alk.womplist.feature.title
 
-import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.StarHalf
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarOutline
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -33,8 +84,18 @@ import itmo.alk.womplist.core.ui.utils.HtmlText
 import itmo.alk.womplist.data.LocalAnimeRepository
 import itmo.alk.womplist.data.repository.AnimeStatus
 import kotlinx.coroutines.launch
+import android.view.MotionEvent
+import kotlin.math.min
+import kotlin.math.round
+import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+private data class RatingFlight(
+    val rating: Int,
+    val start: Offset,
+    val end: Offset
+)
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun TitleScreen(
     navController: NavController,
@@ -46,7 +107,11 @@ fun TitleScreen(
     var anime by remember { mutableStateOf<Anime?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var currentStatus by remember { mutableStateOf<AnimeStatus?>(null) }
+    var currentUserRating by remember { mutableStateOf<Int?>(null) }
     var showStatusDialog by remember { mutableStateOf(false) }
+    var showRatingOverlay by remember { mutableStateOf(false) }
+    var starCenter by remember { mutableStateOf(Offset.Zero) }
+    var flyingRating by remember { mutableStateOf<RatingFlight?>(null) }
 
     LaunchedEffect(titleId) {
         isLoading = true
@@ -54,6 +119,7 @@ fun TitleScreen(
         anime = result
         if (result != null) {
             currentStatus = repository.getStatusForAnime(result.id)
+            currentUserRating = repository.getUserRatingForAnime(result.id)
         }
         isLoading = false
     }
@@ -65,7 +131,8 @@ fun TitleScreen(
         return
     }
 
-    if (anime == null) {
+    val animeData = anime
+    if (animeData == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Anime not found")
         }
@@ -79,123 +146,183 @@ fun TitleScreen(
         stringResource(R.string.recommendations)
     )
 
-    Column(
-        modifier = Modifier.fillMaxSize()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned {
+                if (starCenter == Offset.Zero) {
+                    starCenter = Offset(it.size.width.toFloat() - 24f, 24f)
+                }
+            }
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            AsyncImage(
-                model = anime!!.posterUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background),
-                            startY = 150f
-                        )
-                    )
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .height(250.dp)
             ) {
-                Text(
-                    text = anime!!.russianName ?: anime!!.name,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onPrimary
+                AsyncImage(
+                    model = animeData.posterUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 4.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background),
+                                startY = 150f
+                            )
+                        )
+                )
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = animeData.russianName ?: animeData.name,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Box {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = stringResource(R.string.rate_title),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .onGloballyPositioned { coordinates ->
+                                        val position = coordinates.positionInRoot()
+                                        starCenter = Offset(
+                                            x = position.x + coordinates.size.width / 2f,
+                                            y = position.y + coordinates.size.height / 2f
+                                        )
+                                    }
+                                    .combinedClickable(
+                                        onClick = {},
+                                        onLongClick = { showRatingOverlay = true }
+                                    ),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("${"%.1f".format(animeData.score)}/10")
+                        if (currentUserRating != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.your_rating, currentUserRating!!),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(animeData.year?.toString() ?: "?")
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Button(
+                    onClick = { /* Запуск видео */ },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.watch))
+                }
+                OutlinedButton(
+                    onClick = { showStatusDialog = true },
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        Icons.Default.Star,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        when (currentStatus) {
+                            AnimeStatus.WATCHING -> Icons.Default.Visibility
+                            AnimeStatus.PLANNED -> Icons.Default.Schedule
+                            AnimeStatus.COMPLETED -> Icons.Default.CheckCircle
+                            else -> Icons.Default.Add
+                        },
+                        contentDescription = null
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("${"%.1f".format(anime!!.score)}/10")
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(anime!!.year?.toString() ?: "?")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        when (currentStatus) {
+                            AnimeStatus.WATCHING -> stringResource(R.string.in_watching)
+                            AnimeStatus.PLANNED -> stringResource(R.string.in_planned)
+                            AnimeStatus.COMPLETED -> stringResource(R.string.in_completed)
+                            else -> stringResource(R.string.add_to_list)
+                        }
+                    )
+                }
+            }
+
+            TabRow(
+                selectedTabIndex = pagerState.currentPage,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
+                        text = { Text(title) }
+                    )
+                }
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> AboutTab(animeData)
+                    1 -> EpisodesTab(animeData)
+                    2 -> RecommendationsTab(navController, repository)
                 }
             }
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Button(
-                onClick = { /* Запуск видео */ },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.watch))
-            }
-            OutlinedButton(
-                onClick = { showStatusDialog = true },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    when (currentStatus) {
-                        AnimeStatus.WATCHING -> Icons.Default.Visibility
-                        AnimeStatus.PLANNED -> Icons.Default.Schedule
-                        AnimeStatus.COMPLETED -> Icons.Default.CheckCircle
-                        else -> Icons.Default.Add
-                    },
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    when (currentStatus) {
-                        AnimeStatus.WATCHING -> stringResource(R.string.in_watching)
-                        AnimeStatus.PLANNED -> stringResource(R.string.in_planned)
-                        AnimeStatus.COMPLETED -> stringResource(R.string.in_completed)
-                        else -> stringResource(R.string.add_to_list)
+        flyingRating?.let { flight ->
+            FlyingRatingBadge(
+                flight = flight,
+                modifier = Modifier.align(Alignment.TopStart),
+                onAnimationFinished = { rating ->
+                    coroutineScope.launch {
+                        repository.setUserRating(animeData.id, rating)
+                        currentUserRating = rating
                     }
-                )
-            }
+                    flyingRating = null
+                }
+            )
         }
 
-        TabRow(
-            selectedTabIndex = pagerState.currentPage,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = pagerState.currentPage == index,
-                    onClick = {
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(index)
-                        }
-                    },
-                    text = { Text(title) }
-                )
-            }
-        }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(1f)
-        ) { page ->
-            when (page) {
-                0 -> AboutTab(anime!!)
-                1 -> EpisodesTab(anime!!)
-                2 -> RecommendationsTab(navController, repository)
-            }
+        if (showRatingOverlay) {
+            RatingOverlay(
+                initialRating = currentUserRating ?: 8,
+                onDismiss = { showRatingOverlay = false },
+                onRatingConfirmed = { rating, sourcePoint ->
+                    flyingRating = RatingFlight(
+                        rating = rating,
+                        start = sourcePoint,
+                        end = starCenter
+                    )
+                    showRatingOverlay = false
+                }
+            )
         }
     }
 
@@ -210,7 +337,7 @@ fun TitleScreen(
                         icon = Icons.Default.Visibility,
                         onClick = {
                             coroutineScope.launch {
-                                repository.addToList(anime!!, AnimeStatus.WATCHING)
+                                repository.addToList(animeData, AnimeStatus.WATCHING)
                                 currentStatus = AnimeStatus.WATCHING
                             }
                             showStatusDialog = false
@@ -221,7 +348,7 @@ fun TitleScreen(
                         icon = Icons.Default.Schedule,
                         onClick = {
                             coroutineScope.launch {
-                                repository.addToList(anime!!, AnimeStatus.PLANNED)
+                                repository.addToList(animeData, AnimeStatus.PLANNED)
                                 currentStatus = AnimeStatus.PLANNED
                             }
                             showStatusDialog = false
@@ -232,7 +359,7 @@ fun TitleScreen(
                         icon = Icons.Default.CheckCircle,
                         onClick = {
                             coroutineScope.launch {
-                                repository.addToList(anime!!, AnimeStatus.COMPLETED)
+                                repository.addToList(animeData, AnimeStatus.COMPLETED)
                                 currentStatus = AnimeStatus.COMPLETED
                             }
                             showStatusDialog = false
@@ -245,7 +372,7 @@ fun TitleScreen(
                             icon = Icons.Default.Delete,
                             onClick = {
                                 coroutineScope.launch {
-                                    repository.removeFromList(anime!!.id, currentStatus!!)
+                                    repository.removeFromList(animeData.id, currentStatus!!)
                                     currentStatus = null
                                 }
                                 showStatusDialog = false
@@ -263,6 +390,193 @@ fun TitleScreen(
             }
         )
     }
+}
+
+@Composable
+private fun RatingOverlay(
+    initialRating: Int,
+    onDismiss: () -> Unit,
+    onRatingConfirmed: (Int, Offset) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    var currentStars by remember(initialRating) {
+        mutableStateOf((initialRating.coerceIn(1, 10) / 2f).coerceIn(0.5f, 5f))
+    }
+    var rowOrigin by remember { mutableStateOf(Offset.Zero) }
+    var rowWidthPx by remember { mutableStateOf(1f) }
+    var rowCenterY by remember { mutableStateOf(0f) }
+
+    fun updateStarsByX(localX: Float) {
+        val normalized = (localX / rowWidthPx).coerceIn(0f, 1f)
+        val stepped = round(normalized * 10f) / 2f
+        val newStars = stepped.coerceIn(0.5f, 5f)
+        if (newStars != currentStars) {
+            currentStars = newStars
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.55f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 8.dp,
+            modifier = Modifier
+                .padding(24.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                )
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.rate_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .onGloballyPositioned { coordinates ->
+                            val position = coordinates.positionInRoot()
+                            rowOrigin = position
+                            rowWidthPx = coordinates.size.width.toFloat().coerceAtLeast(1f)
+                            rowCenterY = position.y + (coordinates.size.height / 2f)
+                        }
+                        .pointerInteropFilter { event ->
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN,
+                                MotionEvent.ACTION_MOVE -> {
+                                    updateStarsByX(event.x.coerceIn(0f, rowWidthPx))
+                                    true
+                                }
+
+                                MotionEvent.ACTION_UP -> {
+                                    val clampedX = event.x.coerceIn(0f, rowWidthPx)
+                                    updateStarsByX(clampedX)
+                                    val sourcePoint = Offset(rowOrigin.x + clampedX, rowCenterY)
+                                    onRatingConfirmed(
+                                        (currentStars * 2).roundToInt().coerceIn(1, 10),
+                                        sourcePoint
+                                    )
+                                    true
+                                }
+
+                                MotionEvent.ACTION_CANCEL -> {
+                                    onDismiss()
+                                    true
+                                }
+
+                                else -> false
+                            }
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (starIndex in 1..5) {
+                        val icon = when {
+                            currentStars >= starIndex -> Icons.Default.Star
+                            currentStars >= starIndex - 0.5f -> Icons.AutoMirrored.Filled.StarHalf
+                            else -> Icons.Default.StarOutline
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = stringResource(R.string.your_rating, (currentStars * 2).roundToInt()),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.rating_overlay_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlyingRatingBadge(
+    flight: RatingFlight,
+    modifier: Modifier = Modifier,
+    onAnimationFinished: (Int) -> Unit
+) {
+    val progress = remember(flight) { Animatable(0f) }
+
+    LaunchedEffect(flight) {
+        progress.snapTo(0f)
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
+        )
+        onAnimationFinished(flight.rating)
+    }
+
+    val currentProgress = progress.value
+    val controlPoint = Offset(
+        x = (flight.start.x + flight.end.x) / 2f,
+        y = min(flight.start.y, flight.end.y) - 180f
+    )
+    val currentPosition = quadraticBezier(
+        start = flight.start,
+        control = controlPoint,
+        end = flight.end,
+        progress = currentProgress
+    )
+
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary,
+        tonalElevation = 6.dp,
+        modifier = modifier
+            .offset {
+                IntOffset(
+                    x = (currentPosition.x - 22f).roundToInt(),
+                    y = (currentPosition.y - 14f).roundToInt()
+                )
+            }
+            .graphicsLayer {
+                val scale = 1f + 0.25f * (1f - currentProgress)
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        Text(
+            text = flight.rating.toString(),
+            color = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+private fun quadraticBezier(start: Offset, control: Offset, end: Offset, progress: Float): Offset {
+    val oneMinusT = 1f - progress
+    return Offset(
+        x = oneMinusT * oneMinusT * start.x + 2f * oneMinusT * progress * control.x + progress * progress * end.x,
+        y = oneMinusT * oneMinusT * start.y + 2f * oneMinusT * progress * control.y + progress * progress * end.y
+    )
 }
 
 @Composable
@@ -324,7 +638,7 @@ fun EpisodesTab(anime: Anime) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(anime.episodes) { episodeNumber ->
-            ListItem(
+            androidx.compose.material3.ListItem(
                 headlineContent = { Text("Эпизод $episodeNumber") },
                 leadingContent = { Icon(Icons.Default.PlayArrow, null) }
             )

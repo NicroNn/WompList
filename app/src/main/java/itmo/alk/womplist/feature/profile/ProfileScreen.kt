@@ -24,10 +24,15 @@ import itmo.alk.womplist.core.navigation.Routes
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
+import itmo.alk.womplist.core.ui.components.ScreenCornerType
 import itmo.alk.womplist.data.LocalAnimeRepository
 
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(
+    navController: NavController,
+    onSecretTrigger: () -> Unit = {}
+) {
     val repository = LocalAnimeRepository.current
 
     val watchingList by repository.watchingList.collectAsState(initial = emptyList())
@@ -74,8 +79,17 @@ fun ProfileScreen(navController: NavController) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ScreenCornerAnimation(
+                        type = ScreenCornerType.PROFILE,
+                        onSecretTrigger = onSecretTrigger
+                    )
+                    IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                    }
                 }
             }
         }

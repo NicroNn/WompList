@@ -33,4 +33,7 @@
     <string name="in_watching">Смотрю</string>
     <string name="in_planned">В планах</string>
     <string name="in_completed">Просмотрено</string>
+    <string name="rate_title">Оценить тайтл</string>
+    <string name="your_rating">Моя: %1$d/10</string>
+    <string name="rating_overlay_hint">Проведите по звёздам и отпустите, чтобы сохранить</string>
 </resources>

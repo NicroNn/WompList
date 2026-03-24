@@ -13,6 +13,8 @@ interface AnimeRepository {
     suspend fun addToList(anime: Anime, status: AnimeStatus)
     suspend fun removeFromList(animeId: Long, status: AnimeStatus)
     suspend fun getStatusForAnime(animeId: Long): AnimeStatus?
+    suspend fun setUserRating(animeId: Long, rating: Int)
+    suspend fun getUserRatingForAnime(animeId: Long): Int?
     suspend fun searchAnime(query: String): List<Anime>
     suspend fun loadMoreAnime(page: Int)
 }
