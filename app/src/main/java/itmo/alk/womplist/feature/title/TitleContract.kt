@@ -1,10 +1,11 @@
 package itmo.alk.womplist.feature.title
 
 import itmo.alk.womplist.core.model.Anime
+import itmo.alk.womplist.core.error.AppError
 import itmo.alk.womplist.core.mvi.UiEffect
 import itmo.alk.womplist.core.mvi.UiIntent
 import itmo.alk.womplist.core.mvi.UiState
-import itmo.alk.womplist.data.repository.AnimeStatus
+import itmo.alk.womplist.domain.anime.AnimeStatus
 
 data class TitleState(
     val isLoading: Boolean = true,
@@ -13,12 +14,14 @@ data class TitleState(
     val currentUserRating: Int? = null,
     val recommendations: List<Anime> = emptyList(),
     val isStatusDialogVisible: Boolean = false,
-    val isRatingOverlayVisible: Boolean = false
+    val isRatingOverlayVisible: Boolean = false,
+    val error: AppError? = null
 ) : UiState
 
 sealed interface TitleIntent : UiIntent {
     data class Initialize(val titleId: Long) : TitleIntent
     data object ObserveRecommendations : TitleIntent
+    data object Retry : TitleIntent
     data object OpenStatusDialog : TitleIntent
     data object DismissStatusDialog : TitleIntent
     data object OpenRatingOverlay : TitleIntent

@@ -29,15 +29,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import itmo.alk.womplist.R
-import itmo.alk.womplist.data.LocalAnimeRepository
-import itmo.alk.womplist.data.LocalUserPreferencesRepository
 import itmo.alk.womplist.core.ui.components.BouncingEasterEggOverlay
 import itmo.alk.womplist.core.ui.components.BottomBar
 import itmo.alk.womplist.core.ui.components.EasterEggConfig
@@ -45,42 +45,22 @@ import itmo.alk.womplist.core.ui.components.ScreenCornerType
 import itmo.alk.womplist.feature.home.HomeScreen
 import itmo.alk.womplist.feature.home.HomeEffect
 import itmo.alk.womplist.feature.home.HomeViewModel
-import itmo.alk.womplist.feature.home.HomeViewModelFactory
 import itmo.alk.womplist.feature.mylist.MyListScreen
 import itmo.alk.womplist.feature.mylist.MyListEffect
 import itmo.alk.womplist.feature.mylist.MyListViewModel
-import itmo.alk.womplist.feature.mylist.MyListViewModelFactory
 import itmo.alk.womplist.feature.profile.ProfileScreen
 import itmo.alk.womplist.feature.profile.ProfileEffect
 import itmo.alk.womplist.feature.profile.ProfileViewModel
-import itmo.alk.womplist.feature.profile.ProfileViewModelFactory
 import itmo.alk.womplist.feature.settings.SettingsScreen
 import itmo.alk.womplist.feature.settings.SettingsViewModel
-import itmo.alk.womplist.feature.settings.SettingsViewModelFactory
 import itmo.alk.womplist.feature.title.TitleScreen
 import itmo.alk.womplist.feature.title.TitleEffect
 import itmo.alk.womplist.feature.title.TitleViewModel
-import itmo.alk.womplist.feature.title.TitleViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavHost() {
     val navController = rememberNavController()
-    val repository = LocalUserPreferencesRepository.current
-    val animeRepository = LocalAnimeRepository.current
-
-    val settingsViewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModelFactory(repository)
-    )
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModelFactory(animeRepository)
-    )
-    val myListViewModel: MyListViewModel = viewModel(
-        factory = MyListViewModelFactory(animeRepository)
-    )
-    val profileViewModel: ProfileViewModel = viewModel(
-        factory = ProfileViewModelFactory(animeRepository)
-    )
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -91,22 +71,6 @@ fun AppNavHost() {
         overlayScreenType = type
         overlayTriggerKey += 1
     }
-
-    CollectHomeEffects(
-        viewModel = homeViewModel,
-        navController = navController,
-        onSecret = { triggerSecretOverlay(ScreenCornerType.HOME) }
-    )
-    CollectMyListEffects(
-        viewModel = myListViewModel,
-        navController = navController,
-        onSecret = { triggerSecretOverlay(ScreenCornerType.MY_LIST) }
-    )
-    CollectProfileEffects(
-        viewModel = profileViewModel,
-        navController = navController,
-        onSecret = { triggerSecretOverlay(ScreenCornerType.PROFILE) }
-    )
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -119,40 +83,11 @@ fun AppNavHost() {
                         .fillMaxSize()
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        NavHost(
+                        AppGraph(
                             navController = navController,
-                            startDestination = Routes.HOME,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            composable(Routes.HOME) {
-                                HomeScreen(
-                                    viewModel = homeViewModel
-                                )
-                            }
-                            composable(Routes.MY_LIST) {
-                                MyListScreen(
-                                    viewModel = myListViewModel
-                                )
-                            }
-                            composable(Routes.PROFILE) {
-                                ProfileScreen(
-                                    viewModel = profileViewModel
-                                )
-                            }
-                            composable(Routes.SETTINGS) { SettingsScreen(settingsViewModel) }
-                            composable(Routes.TITLE) { backStackEntry ->
-                                val titleId = backStackEntry.arguments?.getString("id")?.toLong() ?: 0L
-                                val titleViewModel: TitleViewModel = viewModel(
-                                    key = "title-$titleId",
-                                    factory = TitleViewModelFactory(animeRepository)
-                                )
-                                CollectTitleEffects(viewModel = titleViewModel, navController = navController)
-                                TitleScreen(
-                                    viewModel = titleViewModel,
-                                    titleId = titleId
-                                )
-                            }
-                        }
+                            modifier = Modifier.fillMaxSize(),
+                            onSecret = triggerSecretOverlay
+                        )
                     }
                     VerticalNavigationRail(navController)
                 }
@@ -161,40 +96,11 @@ fun AppNavHost() {
                     bottomBar = { BottomBar(navController) },
                     modifier = Modifier.fillMaxSize()
                 ) { paddingValues ->
-                    NavHost(
+                    AppGraph(
                         navController = navController,
-                        startDestination = Routes.HOME,
-                        modifier = Modifier.padding(paddingValues)
-                    ) {
-                        composable(Routes.HOME) {
-                            HomeScreen(
-                                viewModel = homeViewModel
-                            )
-                        }
-                        composable(Routes.MY_LIST) {
-                            MyListScreen(
-                                viewModel = myListViewModel
-                            )
-                        }
-                        composable(Routes.PROFILE) {
-                            ProfileScreen(
-                                viewModel = profileViewModel
-                            )
-                        }
-                        composable(Routes.SETTINGS) { SettingsScreen(settingsViewModel) }
-                        composable(Routes.TITLE) { backStackEntry ->
-                            val titleId = backStackEntry.arguments?.getString("id")?.toLong() ?: 0L
-                            val titleViewModel: TitleViewModel = viewModel(
-                                key = "title-$titleId",
-                                factory = TitleViewModelFactory(animeRepository)
-                            )
-                            CollectTitleEffects(viewModel = titleViewModel, navController = navController)
-                            TitleScreen(
-                                viewModel = titleViewModel,
-                                titleId = titleId
-                            )
-                        }
-                    }
+                        modifier = Modifier.padding(paddingValues),
+                        onSecret = triggerSecretOverlay
+                    )
                 }
             }
 
@@ -208,6 +114,76 @@ fun AppNavHost() {
 }
 
 @Composable
+private fun AppGraph(
+    navController: NavHostController,
+    modifier: Modifier,
+    onSecret: (ScreenCornerType) -> Unit
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Routes.HOME,
+        modifier = modifier
+    ) {
+        composable(Routes.HOME) {
+            val homeViewModel: HomeViewModel = hiltViewModel()
+            CollectHomeEffects(
+                viewModel = homeViewModel,
+                navController = navController,
+                onSecret = { onSecret(ScreenCornerType.HOME) }
+            )
+            HomeScreen(viewModel = homeViewModel)
+        }
+        composable(Routes.MY_LIST) {
+            val myListViewModel: MyListViewModel = hiltViewModel()
+            CollectMyListEffects(
+                viewModel = myListViewModel,
+                navController = navController,
+                onSecret = { onSecret(ScreenCornerType.MY_LIST) }
+            )
+            MyListScreen(viewModel = myListViewModel)
+        }
+        composable(Routes.PROFILE) {
+            val profileViewModel: ProfileViewModel = hiltViewModel()
+            CollectProfileEffects(
+                viewModel = profileViewModel,
+                navController = navController,
+                onSecret = { onSecret(ScreenCornerType.PROFILE) }
+            )
+            ProfileScreen(viewModel = profileViewModel)
+        }
+        composable(Routes.SETTINGS) {
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            SettingsScreen(settingsViewModel)
+        }
+        composable(Routes.TITLE) { backStackEntry ->
+            val titleId = backStackEntry.arguments?.getString("id")?.toLong() ?: 0L
+            val titleViewModel: TitleViewModel = hiltViewModel(backStackEntry)
+            CollectTitleEffects(viewModel = titleViewModel, navController = navController)
+            TitleScreen(
+                viewModel = titleViewModel,
+                titleId = titleId
+            )
+        }
+    }
+}
+
+private fun NavController.navigateTopLevel(route: String) {
+    navigate(route) {
+        launchSingleTop = true
+        restoreState = true
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+    }
+}
+
+private fun NavController.navigateToTitle(id: Long) {
+    navigate(Routes.title(id)) {
+        launchSingleTop = true
+    }
+}
+
+@Composable
 private fun CollectHomeEffects(
     viewModel: HomeViewModel,
     navController: NavController,
@@ -216,7 +192,7 @@ private fun CollectHomeEffects(
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                is HomeEffect.NavigateToTitle -> navController.navigate(Routes.title(effect.id))
+                is HomeEffect.NavigateToTitle -> navController.navigateToTitle(effect.id)
                 HomeEffect.TriggerSecretOverlay -> onSecret()
             }
         }
@@ -232,7 +208,7 @@ private fun CollectMyListEffects(
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                is MyListEffect.NavigateToTitle -> navController.navigate(Routes.title(effect.id))
+                is MyListEffect.NavigateToTitle -> navController.navigateToTitle(effect.id)
                 MyListEffect.TriggerSecretOverlay -> onSecret()
             }
         }
@@ -248,8 +224,8 @@ private fun CollectProfileEffects(
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                is ProfileEffect.NavigateToTitle -> navController.navigate(Routes.title(effect.id))
-                ProfileEffect.NavigateToSettings -> navController.navigate(Routes.SETTINGS)
+                is ProfileEffect.NavigateToTitle -> navController.navigateToTitle(effect.id)
+                ProfileEffect.NavigateToSettings -> navController.navigateTopLevel(Routes.SETTINGS)
                 ProfileEffect.TriggerSecretOverlay -> onSecret()
             }
         }
@@ -264,7 +240,7 @@ private fun CollectTitleEffects(
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                is TitleEffect.NavigateToTitle -> navController.navigate(Routes.title(effect.id))
+                is TitleEffect.NavigateToTitle -> navController.navigateToTitle(effect.id)
             }
         }
     }
@@ -298,7 +274,7 @@ fun VerticalNavigationRail(navController: NavController) {
                     Icon(imageVector = icon, contentDescription = null, tint = color)
                 },
                 selected = isSelected,
-                onClick = { navController.navigate(screen) },
+                onClick = { navController.navigateTopLevel(screen) },
                 alwaysShowLabel = false
             )
         }

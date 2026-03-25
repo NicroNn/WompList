@@ -1,13 +1,24 @@
 package itmo.alk.womplist.feature.settings
 
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import itmo.alk.womplist.core.error.toAppError
 import itmo.alk.womplist.core.mvi.MviViewModel
-import itmo.alk.womplist.data.repository.UserPreferencesRepository
+import itmo.alk.womplist.domain.settings.usecase.ObserveDarkThemeUseCase
+import itmo.alk.womplist.domain.settings.usecase.ObserveLanguageUseCase
+import itmo.alk.womplist.domain.settings.usecase.SaveDarkThemeUseCase
+import itmo.alk.womplist.domain.settings.usecase.SaveLanguageUseCase
+import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(
-    private val userPreferencesRepository: UserPreferencesRepository
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val observeDarkTheme: ObserveDarkThemeUseCase,
+    private val observeLanguage: ObserveLanguageUseCase,
+    private val saveDarkTheme: SaveDarkThemeUseCase,
+    private val saveLanguage: SaveLanguageUseCase
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
 
     private var observeJob: Job? = null
@@ -19,27 +30,54 @@ class SettingsViewModel(
     override suspend fun handleIntent(intent: SettingsIntent) {
         when (intent) {
             is SettingsIntent.ToggleDarkTheme -> {
-                userPreferencesRepository.saveDarkTheme(intent.enabled)
+                try {
+                    setState { it.copy(error = null) }
+                    saveDarkTheme(intent.enabled)
+                } catch (throwable: Throwable) {
+                    setState { it.copy(error = throwable.toAppError()) }
+                }
             }
 
             is SettingsIntent.SetLanguage -> {
-                userPreferencesRepository.saveLanguage(intent.languageCode)
+                try {
+                    setState { it.copy(error = null) }
+                    saveLanguage(intent.languageCode)
+                } catch (throwable: Throwable) {
+                    setState { it.copy(error = throwable.toAppError()) }
+                }
             }
+
+            SettingsIntent.Retry -> retry()
         }
+    }
+
+    private fun retry() {
+        setState { it.copy(error = null) }
+        observeJob?.cancel()
+        observeJob = null
+        observeSettings()
     }
 
     private fun observeSettings() {
         if (observeJob != null) return
         observeJob = viewModelScope.launch {
             launch {
-                userPreferencesRepository.darkThemeFlow.collect { value ->
-                    setState { it.copy(darkTheme = value) }
-                }
+                observeDarkTheme()
+                    .catch { throwable ->
+                        setState { it.copy(error = throwable.toAppError()) }
+                    }
+                    .collect { value ->
+                        setState { it.copy(darkTheme = value) }
+                    }
             }
             launch {
-                userPreferencesRepository.languageFlow.collect { value ->
-                    setState { it.copy(language = value) }
-                }
+                observeLanguage()
+                    .catch { throwable ->
+                        setState { it.copy(error = throwable.toAppError()) }
+                    }
+                    .collect { value ->
+                        setState { it.copy(language = value) }
+                    }
             }
         }
     }

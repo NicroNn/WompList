@@ -1,7 +1,10 @@
 package itmo.alk.womplist.feature.home
 
 import app.cash.turbine.test
+import itmo.alk.womplist.core.error.AppError
 import itmo.alk.womplist.core.model.Anime
+import itmo.alk.womplist.domain.home.usecase.ObserveHomeAnimeUseCase
+import itmo.alk.womplist.domain.home.usecase.SearchHomeAnimeUseCase
 import itmo.alk.womplist.testutil.FakeAnimeRepository
 import itmo.alk.womplist.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,7 +29,7 @@ class HomeViewModelTest {
         )
         val repository = FakeAnimeRepository(initialAllAnime = animeList)
 
-        val viewModel = HomeViewModel(repository)
+        val viewModel = createViewModel(repository)
         advanceUntilIdle()
 
         assertEquals(animeList, viewModel.state.value.allAnime)
@@ -41,7 +44,7 @@ class HomeViewModelTest {
                 testAnime(id = 2, name = "Bleach")
             )
         )
-        val viewModel = HomeViewModel(repository)
+        val viewModel = createViewModel(repository)
 
         viewModel.onIntent(HomeIntent.SearchChanged("nar"))
         advanceUntilIdle()
@@ -53,8 +56,42 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `blank query clears search results and searching flag`() = runTest {
+        val repository = FakeAnimeRepository(
+            initialAllAnime = listOf(
+                testAnime(id = 1, name = "Naruto"),
+                testAnime(id = 2, name = "Bleach")
+            )
+        )
+        val viewModel = createViewModel(repository)
+
+        viewModel.onIntent(HomeIntent.SearchChanged("nar"))
+        advanceUntilIdle()
+        viewModel.onIntent(HomeIntent.SearchChanged(""))
+        advanceUntilIdle()
+
+        assertEquals("", viewModel.state.value.searchQuery)
+        assertEquals(0, viewModel.state.value.searchResults.size)
+        assertEquals(false, viewModel.state.value.isSearching)
+    }
+
+    @Test
+    fun `search error updates error state and stops searching`() = runTest {
+        val repository = FakeAnimeRepository().apply {
+            throwOnSearch = IllegalStateException("search failed")
+        }
+        val viewModel = createViewModel(repository)
+
+        viewModel.onIntent(HomeIntent.SearchChanged("nar"))
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.state.value.isSearching)
+        assertTrue(viewModel.state.value.error is AppError.Unknown)
+    }
+
+    @Test
     fun `open title sends navigation effect`() = runTest {
-        val viewModel = HomeViewModel(FakeAnimeRepository())
+        val viewModel = createViewModel(FakeAnimeRepository())
 
         viewModel.effects.test {
             viewModel.onIntent(HomeIntent.OpenTitle(42L))
@@ -78,5 +115,11 @@ class HomeViewModelTest {
             year = 2020
         )
     }
-}
 
+    private fun createViewModel(repository: FakeAnimeRepository): HomeViewModel {
+        return HomeViewModel(
+            observeHomeAnime = ObserveHomeAnimeUseCase(repository),
+            searchHomeAnime = SearchHomeAnimeUseCase(repository)
+        )
+    }
+}

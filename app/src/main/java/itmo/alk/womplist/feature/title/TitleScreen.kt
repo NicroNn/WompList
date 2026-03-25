@@ -70,6 +70,7 @@ import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
@@ -79,8 +80,10 @@ import itmo.alk.womplist.R
 import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
+import itmo.alk.womplist.core.ui.components.ErrorBanner
 import itmo.alk.womplist.core.ui.utils.HtmlText
-import itmo.alk.womplist.data.repository.AnimeStatus
+import itmo.alk.womplist.core.ui.utils.preferredAnimeTitle
+import itmo.alk.womplist.domain.anime.AnimeStatus
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.math.round
@@ -100,6 +103,7 @@ fun TitleScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val state by viewModel.state.collectAsState()
+    val languageCode = LocalConfiguration.current.locales[0]?.language ?: "en"
 
     var starCenter by remember { mutableStateOf(Offset.Zero) }
     var flyingRating by remember { mutableStateOf<RatingFlight?>(null) }
@@ -118,7 +122,13 @@ fun TitleScreen(
     val animeData = state.anime
     if (animeData == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Anime not found")
+            state.error?.let { error ->
+                ErrorBanner(
+                    error = error,
+                    onRetry = { viewModel.onIntent(TitleIntent.Retry) },
+                    modifier = Modifier.padding(16.dp)
+                )
+            } ?: Text("Anime not found")
         }
         return
     }
@@ -169,7 +179,7 @@ fun TitleScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = animeData.russianName ?: animeData.name,
+                        text = preferredAnimeTitle(animeData, languageCode),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
@@ -251,6 +261,14 @@ fun TitleScreen(
                 }
             }
 
+            state.error?.let { error ->
+                ErrorBanner(
+                    error = error,
+                    onRetry = { viewModel.onIntent(TitleIntent.Retry) },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
             TabRow(
                 selectedTabIndex = pagerState.currentPage,
                 modifier = Modifier.fillMaxWidth()
@@ -277,7 +295,8 @@ fun TitleScreen(
                     1 -> EpisodesTab(animeData)
                     2 -> RecommendationsTab(
                         recommendations = state.recommendations,
-                        onAnimeClick = { id -> viewModel.onIntent(TitleIntent.OpenTitle(id)) }
+                        onAnimeClick = { id -> viewModel.onIntent(TitleIntent.OpenTitle(id)) },
+                        languageCode = languageCode
                     )
                 }
             }
@@ -287,8 +306,7 @@ fun TitleScreen(
             FlyingRatingBadge(
                 flight = flight,
                 modifier = Modifier.align(Alignment.TopStart),
-                onAnimationFinished = { rating ->
-                    viewModel.onIntent(TitleIntent.SaveRating(rating))
+                onAnimationFinished = {
                     flyingRating = null
                 }
             )
@@ -299,12 +317,12 @@ fun TitleScreen(
                 initialRating = state.currentUserRating ?: 8,
                 onDismiss = { viewModel.onIntent(TitleIntent.DismissRatingOverlay) },
                 onRatingConfirmed = { rating, sourcePoint ->
+                    viewModel.onIntent(TitleIntent.SaveRating(rating))
                     flyingRating = RatingFlight(
                         rating = rating,
                         start = sourcePoint,
                         end = starCenter
                     )
-                    viewModel.onIntent(TitleIntent.DismissRatingOverlay)
                 }
             )
         }
@@ -489,7 +507,7 @@ private fun RatingOverlay(
 private fun FlyingRatingBadge(
     flight: RatingFlight,
     modifier: Modifier = Modifier,
-    onAnimationFinished: (Int) -> Unit
+    onAnimationFinished: () -> Unit
 ) {
     val progress = remember(flight) { Animatable(0f) }
 
@@ -499,7 +517,7 @@ private fun FlyingRatingBadge(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
-        onAnimationFinished(flight.rating)
+        onAnimationFinished()
     }
 
     val currentProgress = progress.value
@@ -617,7 +635,8 @@ fun EpisodesTab(anime: Anime) {
 @Composable
 fun RecommendationsTab(
     recommendations: List<Anime>,
-    onAnimeClick: (Long) -> Unit
+    onAnimeClick: (Long) -> Unit,
+    languageCode: String
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -626,7 +645,7 @@ fun RecommendationsTab(
     ) {
         items(recommendations) { anime ->
             AnimeCard(
-                title = anime.russianName ?: anime.name,
+                title = preferredAnimeTitle(anime, languageCode),
                 posterUrl = anime.posterUrl,
                 onClick = { onAnimeClick(anime.id) },
                 type = AnimeCardType.HORIZONTAL

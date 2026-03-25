@@ -25,8 +25,10 @@ import itmo.alk.womplist.R
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.core.ui.components.ErrorBanner
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
+import itmo.alk.womplist.core.ui.utils.preferredAnimeTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +39,7 @@ fun MyListScreen(
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val languageCode = configuration.locales[0]?.language ?: "en"
 
     data class StatusData(
         val name: String,
@@ -138,6 +141,14 @@ fun MyListScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        state.error?.let { error ->
+            ErrorBanner(
+                error = error,
+                onRetry = { viewModel.onIntent(MyListIntent.Retry) },
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
         AnimatedContent(
             targetState = selectedStatus,
             transitionSpec = {
@@ -158,7 +169,7 @@ fun MyListScreen(
                     ) {
                         items(state.selectedList) { anime ->
                             AnimeCard(
-                                title = anime.russianName ?: anime.name,
+                                title = preferredAnimeTitle(anime, languageCode),
                                 posterUrl = anime.posterUrl,
                                 onClick = { viewModel.onIntent(MyListIntent.OpenTitle(anime.id)) },
                                 type = AnimeCardType.VERTICAL
@@ -172,7 +183,7 @@ fun MyListScreen(
                     ) {
                         items(state.selectedList) { anime ->
                             AnimeCard(
-                                title = anime.russianName ?: anime.name,
+                                title = preferredAnimeTitle(anime, languageCode),
                                 posterUrl = anime.posterUrl,
                                 onClick = { viewModel.onIntent(MyListIntent.OpenTitle(anime.id)) },
                                 type = AnimeCardType.HORIZONTAL

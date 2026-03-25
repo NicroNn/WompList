@@ -3,11 +3,12 @@ package itmo.alk.womplist.data.repository
 import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.data.local.repository.LocalAnimeStatusRepository
 import itmo.alk.womplist.data.network.repository.NetworkAnimeRepository
+import javax.inject.Inject
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 
-class AnimeRepositoryImpl(
+class AnimeRepositoryImpl @Inject constructor(
     private val networkRepo: NetworkAnimeRepository,
     private val localStatusRepo: LocalAnimeStatusRepository
 ) : AnimeRepository {
@@ -51,12 +52,20 @@ class AnimeRepositoryImpl(
         return localStatusRepo.getStatus(animeId)
     }
 
+    override fun observeStatusForAnime(animeId: Long): Flow<AnimeStatus?> {
+        return localStatusRepo.observeStatus(animeId)
+    }
+
     override suspend fun setUserRating(animeId: Long, rating: Int) {
         localStatusRepo.setRating(animeId, rating)
     }
 
     override suspend fun getUserRatingForAnime(animeId: Long): Int? {
         return localStatusRepo.getRating(animeId)
+    }
+
+    override fun observeUserRatingForAnime(animeId: Long): Flow<Int?> {
+        return localStatusRepo.observeRating(animeId)
     }
 
     override suspend fun searchAnime(query: String): List<Anime> {

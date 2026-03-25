@@ -1,5 +1,3 @@
 package itmo.alk.womplist.data.repository
 
-enum class AnimeStatus {
-    WATCHING, PLANNED, COMPLETED
-}
+typealias AnimeStatus = itmo.alk.womplist.domain.anime.AnimeStatus

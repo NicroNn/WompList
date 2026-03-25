@@ -36,4 +36,5 @@
     <string name="rate_title">Rate title</string>
     <string name="your_rating">Your: %1$d/10</string>
     <string name="rating_overlay_hint">Drag across stars and release to save</string>
+    <string name="retry">Retry</string>
 </resources>

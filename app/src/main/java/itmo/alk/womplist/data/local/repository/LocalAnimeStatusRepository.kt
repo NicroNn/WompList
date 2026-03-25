@@ -4,11 +4,12 @@ import itmo.alk.womplist.data.local.database.AppDatabase
 import itmo.alk.womplist.data.local.database.entity.UserAnimeRatingEntity
 import itmo.alk.womplist.data.local.database.entity.UserAnimeStatusEntity
 import itmo.alk.womplist.data.repository.AnimeStatus
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class LocalAnimeStatusRepository(
-    private val db: AppDatabase
+class LocalAnimeStatusRepository @Inject constructor(
+    db: AppDatabase
 ) {
     private val dao = db.userAnimeStatusDao()
     private val ratingDao = db.userAnimeRatingDao()
@@ -35,12 +36,22 @@ class LocalAnimeStatusRepository(
         return AnimeStatus.valueOf(name)
     }
 
+    fun observeStatus(animeId: Long): Flow<AnimeStatus?> {
+        return dao.observeStatusForAnime(animeId).map { name ->
+            name?.let(AnimeStatus::valueOf)
+        }
+    }
+
     suspend fun setRating(animeId: Long, rating: Int) {
         ratingDao.upsert(UserAnimeRatingEntity(animeId = animeId, rating = rating))
     }
 
     suspend fun getRating(animeId: Long): Int? {
         return ratingDao.getRatingForAnime(animeId)
+    }
+
+    fun observeRating(animeId: Long): Flow<Int?> {
+        return ratingDao.observeRatingForAnime(animeId)
     }
 
     suspend fun removeRating(animeId: Long) {

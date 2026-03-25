@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import itmo.alk.womplist.core.navigation.Routes
 
@@ -32,7 +33,15 @@ fun BottomBar(navController: NavController) {
             val color = if (isSelected) Color.Blue else Color.Gray
 
             IconButton(
-                onClick = { navController.navigate(screen) },
+                onClick = {
+                    navController.navigate(screen) {
+                        launchSingleTop = true
+                        restoreState = true
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                    }
+                },
                 modifier = Modifier.weight(1f)
             ) {
                 val icon = when (screen) {

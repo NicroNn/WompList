@@ -20,4 +20,7 @@ interface UserAnimeStatusDao {
 
     @Query("SELECT status FROM user_anime_status WHERE animeId = :animeId")
     suspend fun getStatusForAnime(animeId: Long): String?
+
+    @Query("SELECT status FROM user_anime_status WHERE animeId = :animeId")
+    fun observeStatusForAnime(animeId: Long): Flow<String?>
 }

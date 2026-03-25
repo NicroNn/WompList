@@ -36,4 +36,5 @@
     <string name="rate_title">Оценить тайтл</string>
     <string name="your_rating">Моя: %1$d/10</string>
     <string name="rating_overlay_hint">Проведите по звёздам и отпустите, чтобы сохранить</string>
+    <string name="retry">Повторить</string>
 </resources>

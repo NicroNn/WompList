@@ -19,18 +19,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
 import itmo.alk.womplist.R
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.core.ui.components.ErrorBanner
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
+import itmo.alk.womplist.core.ui.utils.preferredAnimeTitle
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel
 ) {
     val state by viewModel.state.collectAsState()
+    val languageCode = LocalConfiguration.current.locales[0]?.language ?: "en"
 
     val stats = listOf(
         Triple(stringResource(R.string.watching), state.watchingList.size, Icons.Default.Visibility),
@@ -112,10 +116,19 @@ fun ProfileScreen(
             )
         }
 
+        state.error?.let { error ->
+            item {
+                ErrorBanner(
+                    error = error,
+                    onRetry = { viewModel.onIntent(ProfileIntent.Retry) }
+                )
+            }
+        }
+
         if (state.continueWatching.isNotEmpty()) {
             items(state.continueWatching) { anime ->
                 AnimeCard(
-                    title = anime.russianName ?: anime.name,
+                    title = preferredAnimeTitle(anime, languageCode),
                     posterUrl = anime.posterUrl,
                     onClick = { viewModel.onIntent(ProfileIntent.OpenTitle(anime.id)) },
                     type = AnimeCardType.HORIZONTAL

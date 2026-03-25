@@ -20,8 +20,10 @@ import itmo.alk.womplist.R
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
+import itmo.alk.womplist.core.ui.components.ErrorBanner
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
+import itmo.alk.womplist.core.ui.utils.preferredAnimeTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +31,7 @@ fun HomeScreen(
     viewModel: HomeViewModel
 ) {
     val state by viewModel.state.collectAsState()
+    val languageCode = LocalConfiguration.current.locales[0]?.language ?: "en"
 
     Column(
         modifier = Modifier
@@ -64,6 +67,14 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        state.error?.let { error ->
+            ErrorBanner(
+                error = error,
+                onRetry = { viewModel.onIntent(HomeIntent.Retry) },
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
         if (state.isSearching) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -82,7 +93,7 @@ fun HomeScreen(
                 ) {
                     items(state.displayedList) { anime ->
                         AnimeCard(
-                            title = anime.russianName ?: anime.name,
+                            title = preferredAnimeTitle(anime, languageCode),
                             posterUrl = anime.posterUrl,
                             onClick = { viewModel.onIntent(HomeIntent.OpenTitle(anime.id)) },
                             type = AnimeCardType.VERTICAL
@@ -96,7 +107,7 @@ fun HomeScreen(
                 ) {
                     items(state.displayedList) { anime ->
                         AnimeCard(
-                            title = anime.russianName ?: anime.name,
+                            title = preferredAnimeTitle(anime, languageCode),
                             posterUrl = anime.posterUrl,
                             onClick = { viewModel.onIntent(HomeIntent.OpenTitle(anime.id)) },
                             type = AnimeCardType.HORIZONTAL

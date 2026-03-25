@@ -9,8 +9,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import javax.inject.Inject
 
-class NetworkAnimeRepository(
+class NetworkAnimeRepository @Inject constructor(
     private val apolloClient: ApolloClient
 ) {
     private val _animeCache = MutableStateFlow<Map<Long, Anime>>(emptyMap())
