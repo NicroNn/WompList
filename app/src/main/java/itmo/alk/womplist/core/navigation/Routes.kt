@@ -6,4 +6,6 @@ object Routes {
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
     const val TITLE = "title/{id}"
+
+    fun title(id: Long): String = "title/$id"
 }

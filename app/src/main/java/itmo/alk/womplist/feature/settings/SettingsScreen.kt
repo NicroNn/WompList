@@ -15,8 +15,7 @@ import itmo.alk.womplist.core.ui.components.SettingsSwitchItem
 fun SettingsScreen(
     viewModel: SettingsViewModel
 ) {
-    val darkTheme by viewModel.darkTheme.collectAsState()
-    val language by viewModel.language.collectAsState()
+    val state by viewModel.state.collectAsState()
 
     LazyColumn(
         modifier = Modifier
@@ -29,8 +28,8 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.appearance)) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.dark_theme),
-                    checked = darkTheme,
-                    onCheckedChange = { viewModel.toggleDarkTheme(it) }
+                    checked = state.darkTheme,
+                    onCheckedChange = { viewModel.onIntent(SettingsIntent.ToggleDarkTheme(it)) }
                 )
             }
         }
@@ -42,8 +41,8 @@ fun SettingsScreen(
                         "en" to stringResource(R.string.english),
                         "ru" to stringResource(R.string.russian)
                     ),
-                    selectedOption = language,
-                    onOptionSelected = { viewModel.setLanguage(it) }
+                    selectedOption = state.language,
+                    onOptionSelected = { viewModel.onIntent(SettingsIntent.SetLanguage(it)) }
                 )
             }
         }

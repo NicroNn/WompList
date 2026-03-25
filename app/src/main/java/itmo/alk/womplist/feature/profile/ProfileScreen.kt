@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -18,34 +19,24 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import itmo.alk.womplist.R
-import itmo.alk.womplist.core.navigation.Routes
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
-import itmo.alk.womplist.data.LocalAnimeRepository
 
 @Composable
 fun ProfileScreen(
-    navController: NavController,
-    onSecretTrigger: () -> Unit = {}
+    viewModel: ProfileViewModel
 ) {
-    val repository = LocalAnimeRepository.current
+    val state by viewModel.state.collectAsState()
 
-    val watchingList by repository.watchingList.collectAsState(initial = emptyList())
-    val plannedList by repository.plannedList.collectAsState(initial = emptyList())
-    val completedList by repository.completedList.collectAsState(initial = emptyList())
-
-    val username = "Kostya Karenin"
     val stats = listOf(
-        Triple(stringResource(R.string.watching), watchingList.size, Icons.Default.Visibility),
-        Triple(stringResource(R.string.completed), completedList.size, Icons.Default.CheckCircle),
-        Triple(stringResource(R.string.planned), plannedList.size, Icons.Default.Schedule)
+        Triple(stringResource(R.string.watching), state.watchingList.size, Icons.Default.Visibility),
+        Triple(stringResource(R.string.completed), state.completedList.size, Icons.Default.CheckCircle),
+        Triple(stringResource(R.string.planned), state.plannedList.size, Icons.Default.Schedule)
     )
-    val continueWatching = watchingList.take(2)
 
     LazyColumn(
         modifier = Modifier
@@ -70,7 +61,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = username,
+                        text = state.username,
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Text(
@@ -85,9 +76,9 @@ fun ProfileScreen(
                 ) {
                     ScreenCornerAnimation(
                         type = ScreenCornerType.PROFILE,
-                        onSecretTrigger = onSecretTrigger
+                        onSecretTrigger = { viewModel.onIntent(ProfileIntent.TriggerSecret) }
                     )
-                    IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+                    IconButton(onClick = { viewModel.onIntent(ProfileIntent.OpenSettings) }) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 }
@@ -121,12 +112,12 @@ fun ProfileScreen(
             )
         }
 
-        if (continueWatching.isNotEmpty()) {
-            items(continueWatching) { anime ->
+        if (state.continueWatching.isNotEmpty()) {
+            items(state.continueWatching) { anime ->
                 AnimeCard(
                     title = anime.russianName ?: anime.name,
                     posterUrl = anime.posterUrl,
-                    onClick = { navController.navigate("title/${anime.id}") },
+                    onClick = { viewModel.onIntent(ProfileIntent.OpenTitle(anime.id)) },
                     type = AnimeCardType.HORIZONTAL
                 )
             }

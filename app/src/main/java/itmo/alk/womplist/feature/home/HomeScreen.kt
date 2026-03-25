@@ -16,40 +16,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import itmo.alk.womplist.R
-import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
-import itmo.alk.womplist.data.LocalAnimeRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: NavController,
-    onSecretTrigger: () -> Unit = {}
+    viewModel: HomeViewModel
 ) {
-    val repository = LocalAnimeRepository.current
-    val allAnime by repository.allAnime.collectAsState(initial = emptyList())
-
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<Anime>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.isNotBlank()) {
-            isSearching = true
-            searchResults = repository.searchAnime(searchQuery)
-            isSearching = false
-        } else {
-            searchResults = emptyList()
-        }
-    }
-
-    val displayedList = if (searchQuery.isNotBlank()) searchResults else allAnime
+    val state by viewModel.state.collectAsState()
 
     Column(
         modifier = Modifier
@@ -70,13 +49,13 @@ fun HomeScreen(
             )
             ScreenCornerAnimation(
                 type = ScreenCornerType.HOME,
-                onSecretTrigger = onSecretTrigger
+                onSecretTrigger = { viewModel.onIntent(HomeIntent.TriggerSecret) }
             )
         }
 
         OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
+            value = state.searchQuery,
+            onValueChange = { viewModel.onIntent(HomeIntent.SearchChanged(it)) },
             label = { Text(stringResource(R.string.search_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -85,11 +64,11 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isSearching) {
+        if (state.isSearching) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        } else if (displayedList.isEmpty()) {
+        } else if (state.displayedList.isEmpty()) {
             EmptyState(message = stringResource(R.string.no_results))
         } else {
             val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -101,11 +80,11 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(displayedList) { anime ->
+                    items(state.displayedList) { anime ->
                         AnimeCard(
                             title = anime.russianName ?: anime.name,
                             posterUrl = anime.posterUrl,
-                            onClick = { navController.navigate("title/${anime.id}") },
+                            onClick = { viewModel.onIntent(HomeIntent.OpenTitle(anime.id)) },
                             type = AnimeCardType.VERTICAL
                         )
                     }
@@ -115,11 +94,11 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(displayedList) { anime ->
+                    items(state.displayedList) { anime ->
                         AnimeCard(
                             title = anime.russianName ?: anime.name,
                             posterUrl = anime.posterUrl,
-                            onClick = { navController.navigate("title/${anime.id}") },
+                            onClick = { viewModel.onIntent(HomeIntent.OpenTitle(anime.id)) },
                             type = AnimeCardType.HORIZONTAL
                         )
                     }

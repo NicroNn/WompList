@@ -1,32 +1,46 @@
 package itmo.alk.womplist.feature.settings
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import itmo.alk.womplist.core.mvi.MviViewModel
 import itmo.alk.womplist.data.repository.UserPreferencesRepository
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val userPreferencesRepository: UserPreferencesRepository
-) : ViewModel() {
+) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
 
-    val darkTheme: StateFlow<Boolean> = userPreferencesRepository.darkThemeFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    private var observeJob: Job? = null
 
-    val language: StateFlow<String> = userPreferencesRepository.languageFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, "en")
+    init {
+        observeSettings()
+    }
 
-    fun toggleDarkTheme(enabled: Boolean) {
-        viewModelScope.launch {
-            userPreferencesRepository.saveDarkTheme(enabled)
+    override suspend fun handleIntent(intent: SettingsIntent) {
+        when (intent) {
+            is SettingsIntent.ToggleDarkTheme -> {
+                userPreferencesRepository.saveDarkTheme(intent.enabled)
+            }
+
+            is SettingsIntent.SetLanguage -> {
+                userPreferencesRepository.saveLanguage(intent.languageCode)
+            }
         }
     }
 
-    fun setLanguage(languageCode: String) {
-        viewModelScope.launch {
-            userPreferencesRepository.saveLanguage(languageCode)
+    private fun observeSettings() {
+        if (observeJob != null) return
+        observeJob = viewModelScope.launch {
+            launch {
+                userPreferencesRepository.darkThemeFlow.collect { value ->
+                    setState { it.copy(darkTheme = value) }
+                }
+            }
+            launch {
+                userPreferencesRepository.languageFlow.collect { value ->
+                    setState { it.copy(language = value) }
+                }
+            }
         }
     }
 }

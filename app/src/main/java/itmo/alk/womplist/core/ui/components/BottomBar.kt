@@ -3,8 +3,8 @@ package itmo.alk.womplist.core.ui.components
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
@@ -37,7 +37,7 @@ fun BottomBar(navController: NavController) {
             ) {
                 val icon = when (screen) {
                     Routes.HOME -> Icons.Default.Home
-                    Routes.MY_LIST -> Icons.Default.List
+                    Routes.MY_LIST -> Icons.AutoMirrored.Filled.List
                     Routes.PROFILE -> Icons.Default.Person
                     else -> Icons.Default.Home
                 }

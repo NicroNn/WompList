@@ -21,66 +21,52 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import itmo.alk.womplist.R
-import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.components.EmptyState
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
-import itmo.alk.womplist.data.LocalAnimeRepository
-import itmo.alk.womplist.data.repository.AnimeStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyListScreen(
-    navController: NavController,
-    onSecretTrigger: () -> Unit = {}
+    viewModel: MyListViewModel
 ) {
-    val repository = LocalAnimeRepository.current
-
-    val watchingList by repository.watchingList.collectAsState(initial = emptyList())
-    val plannedList by repository.plannedList.collectAsState(initial = emptyList())
-    val completedList by repository.completedList.collectAsState(initial = emptyList())
+    val state by viewModel.state.collectAsState()
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     data class StatusData(
         val name: String,
-        val status: AnimeStatus,
+        val status: MyListFilter,
         val icon: @Composable () -> Unit,
-        val count: Int,
-        val list: List<Anime>
+        val count: Int
     )
 
     val statuses = listOf(
         StatusData(
             name = stringResource(R.string.watching),
-            status = AnimeStatus.WATCHING,
+            status = MyListFilter.WATCHING,
             icon = { Icon(Icons.Default.Visibility, contentDescription = null) },
-            count = watchingList.size,
-            list = watchingList
+            count = state.watchingList.size
         ),
         StatusData(
             name = stringResource(R.string.planned),
-            status = AnimeStatus.PLANNED,
+            status = MyListFilter.PLANNED,
             icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
-            count = plannedList.size,
-            list = plannedList
+            count = state.plannedList.size
         ),
         StatusData(
             name = stringResource(R.string.completed),
-            status = AnimeStatus.COMPLETED,
+            status = MyListFilter.COMPLETED,
             icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
-            count = completedList.size,
-            list = completedList
+            count = state.completedList.size
         )
     )
 
-    var expanded by remember { mutableStateOf(false) }
-    var selectedStatus by remember { mutableStateOf(statuses[0]) }
+    val selectedStatus = statuses.first { it.status == state.selectedFilter }
 
     Column(
         modifier = Modifier
@@ -101,29 +87,33 @@ fun MyListScreen(
             )
             ScreenCornerAnimation(
                 type = ScreenCornerType.MY_LIST,
-                onSecretTrigger = onSecretTrigger
+                onSecretTrigger = { viewModel.onIntent(MyListIntent.TriggerSecret) }
             )
         }
 
         ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
+            expanded = state.isStatusMenuExpanded,
+            onExpandedChange = {
+                viewModel.onIntent(MyListIntent.ToggleStatusMenu(!state.isStatusMenuExpanded))
+            }
         ) {
             OutlinedTextField(
                 value = selectedStatus.name,
                 onValueChange = {},
                 readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = state.isStatusMenuExpanded)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                 label = { Text(stringResource(R.string.status)) },
                 leadingIcon = selectedStatus.icon,
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
             )
             ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
+                expanded = state.isStatusMenuExpanded,
+                onDismissRequest = { viewModel.onIntent(MyListIntent.ToggleStatusMenu(false)) }
             ) {
                 statuses.forEach { status ->
                     DropdownMenuItem(
@@ -137,8 +127,7 @@ fun MyListScreen(
                             }
                         },
                         onClick = {
-                            selectedStatus = status
-                            expanded = false
+                            viewModel.onIntent(MyListIntent.SelectFilter(status.status))
                         },
                         leadingIcon = status.icon,
                         contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
@@ -156,7 +145,7 @@ fun MyListScreen(
             },
             label = "status_content"
         ) { status ->
-            if (status.list.isEmpty()) {
+            if (state.selectedList.isEmpty()) {
                 EmptyState(message = stringResource(R.string.no_items_in_list, status.name))
             } else {
                 if (isLandscape) {
@@ -167,11 +156,11 @@ fun MyListScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(status.list) { anime ->
+                        items(state.selectedList) { anime ->
                             AnimeCard(
                                 title = anime.russianName ?: anime.name,
                                 posterUrl = anime.posterUrl,
-                                onClick = { navController.navigate("title/${anime.id}") },
+                                onClick = { viewModel.onIntent(MyListIntent.OpenTitle(anime.id)) },
                                 type = AnimeCardType.VERTICAL
                             )
                         }
@@ -181,11 +170,11 @@ fun MyListScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(status.list) { anime ->
+                        items(state.selectedList) { anime ->
                             AnimeCard(
                                 title = anime.russianName ?: anime.name,
                                 posterUrl = anime.posterUrl,
-                                onClick = { navController.navigate("title/${anime.id}") },
+                                onClick = { viewModel.onIntent(MyListIntent.OpenTitle(anime.id)) },
                                 type = AnimeCardType.HORIZONTAL
                             )
                         }

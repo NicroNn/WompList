@@ -3,6 +3,7 @@ package itmo.alk.womplist.feature.title
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import android.view.MotionEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -59,7 +60,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -74,17 +74,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import itmo.alk.womplist.R
 import itmo.alk.womplist.core.model.Anime
 import itmo.alk.womplist.core.ui.components.AnimeCard
 import itmo.alk.womplist.core.ui.components.AnimeCardType
 import itmo.alk.womplist.core.ui.utils.HtmlText
-import itmo.alk.womplist.data.LocalAnimeRepository
 import itmo.alk.womplist.data.repository.AnimeStatus
 import kotlinx.coroutines.launch
-import android.view.MotionEvent
 import kotlin.math.min
 import kotlin.math.round
 import kotlin.math.roundToInt
@@ -98,40 +95,27 @@ private data class RatingFlight(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun TitleScreen(
-    navController: NavController,
+    viewModel: TitleViewModel,
     titleId: Long
 ) {
-    val repository = LocalAnimeRepository.current
     val coroutineScope = rememberCoroutineScope()
+    val state by viewModel.state.collectAsState()
 
-    var anime by remember { mutableStateOf<Anime?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var currentStatus by remember { mutableStateOf<AnimeStatus?>(null) }
-    var currentUserRating by remember { mutableStateOf<Int?>(null) }
-    var showStatusDialog by remember { mutableStateOf(false) }
-    var showRatingOverlay by remember { mutableStateOf(false) }
     var starCenter by remember { mutableStateOf(Offset.Zero) }
     var flyingRating by remember { mutableStateOf<RatingFlight?>(null) }
 
     LaunchedEffect(titleId) {
-        isLoading = true
-        val result = repository.getAnimeById(titleId)
-        anime = result
-        if (result != null) {
-            currentStatus = repository.getStatusForAnime(result.id)
-            currentUserRating = repository.getUserRatingForAnime(result.id)
-        }
-        isLoading = false
+        viewModel.onIntent(TitleIntent.Initialize(titleId))
     }
 
-    if (isLoading) {
+    if (state.isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
 
-    val animeData = anime
+    val animeData = state.anime
     if (animeData == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Anime not found")
@@ -208,17 +192,17 @@ fun TitleScreen(
                                     }
                                     .combinedClickable(
                                         onClick = {},
-                                        onLongClick = { showRatingOverlay = true }
+                                        onLongClick = { viewModel.onIntent(TitleIntent.OpenRatingOverlay) }
                                     ),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("${"%.1f".format(animeData.score)}/10")
-                        if (currentUserRating != null) {
+                        if (state.currentUserRating != null) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = stringResource(R.string.your_rating, currentUserRating!!),
+                                text = stringResource(R.string.your_rating, state.currentUserRating!!),
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -243,11 +227,11 @@ fun TitleScreen(
                     Text(stringResource(R.string.watch))
                 }
                 OutlinedButton(
-                    onClick = { showStatusDialog = true },
+                    onClick = { viewModel.onIntent(TitleIntent.OpenStatusDialog) },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        when (currentStatus) {
+                        when (state.currentStatus) {
                             AnimeStatus.WATCHING -> Icons.Default.Visibility
                             AnimeStatus.PLANNED -> Icons.Default.Schedule
                             AnimeStatus.COMPLETED -> Icons.Default.CheckCircle
@@ -257,7 +241,7 @@ fun TitleScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        when (currentStatus) {
+                        when (state.currentStatus) {
                             AnimeStatus.WATCHING -> stringResource(R.string.in_watching)
                             AnimeStatus.PLANNED -> stringResource(R.string.in_planned)
                             AnimeStatus.COMPLETED -> stringResource(R.string.in_completed)
@@ -291,7 +275,10 @@ fun TitleScreen(
                 when (page) {
                     0 -> AboutTab(animeData)
                     1 -> EpisodesTab(animeData)
-                    2 -> RecommendationsTab(navController, repository)
+                    2 -> RecommendationsTab(
+                        recommendations = state.recommendations,
+                        onAnimeClick = { id -> viewModel.onIntent(TitleIntent.OpenTitle(id)) }
+                    )
                 }
             }
         }
@@ -301,34 +288,31 @@ fun TitleScreen(
                 flight = flight,
                 modifier = Modifier.align(Alignment.TopStart),
                 onAnimationFinished = { rating ->
-                    coroutineScope.launch {
-                        repository.setUserRating(animeData.id, rating)
-                        currentUserRating = rating
-                    }
+                    viewModel.onIntent(TitleIntent.SaveRating(rating))
                     flyingRating = null
                 }
             )
         }
 
-        if (showRatingOverlay) {
+        if (state.isRatingOverlayVisible) {
             RatingOverlay(
-                initialRating = currentUserRating ?: 8,
-                onDismiss = { showRatingOverlay = false },
+                initialRating = state.currentUserRating ?: 8,
+                onDismiss = { viewModel.onIntent(TitleIntent.DismissRatingOverlay) },
                 onRatingConfirmed = { rating, sourcePoint ->
                     flyingRating = RatingFlight(
                         rating = rating,
                         start = sourcePoint,
                         end = starCenter
                     )
-                    showRatingOverlay = false
+                    viewModel.onIntent(TitleIntent.DismissRatingOverlay)
                 }
             )
         }
     }
 
-    if (showStatusDialog) {
+    if (state.isStatusDialogVisible) {
         AlertDialog(
-            onDismissRequest = { showStatusDialog = false },
+            onDismissRequest = { viewModel.onIntent(TitleIntent.DismissStatusDialog) },
             title = { Text(stringResource(R.string.select_status)) },
             text = {
                 Column {
@@ -336,46 +320,30 @@ fun TitleScreen(
                         label = stringResource(R.string.watching),
                         icon = Icons.Default.Visibility,
                         onClick = {
-                            coroutineScope.launch {
-                                repository.addToList(animeData, AnimeStatus.WATCHING)
-                                currentStatus = AnimeStatus.WATCHING
-                            }
-                            showStatusDialog = false
+                            viewModel.onIntent(TitleIntent.SetStatus(AnimeStatus.WATCHING))
                         }
                     )
                     StatusOption(
                         label = stringResource(R.string.planned),
                         icon = Icons.Default.Schedule,
                         onClick = {
-                            coroutineScope.launch {
-                                repository.addToList(animeData, AnimeStatus.PLANNED)
-                                currentStatus = AnimeStatus.PLANNED
-                            }
-                            showStatusDialog = false
+                            viewModel.onIntent(TitleIntent.SetStatus(AnimeStatus.PLANNED))
                         }
                     )
                     StatusOption(
                         label = stringResource(R.string.completed),
                         icon = Icons.Default.CheckCircle,
                         onClick = {
-                            coroutineScope.launch {
-                                repository.addToList(animeData, AnimeStatus.COMPLETED)
-                                currentStatus = AnimeStatus.COMPLETED
-                            }
-                            showStatusDialog = false
+                            viewModel.onIntent(TitleIntent.SetStatus(AnimeStatus.COMPLETED))
                         }
                     )
-                    if (currentStatus != null) {
+                    if (state.currentStatus != null) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         StatusOption(
                             label = stringResource(R.string.remove_from_list),
                             icon = Icons.Default.Delete,
                             onClick = {
-                                coroutineScope.launch {
-                                    repository.removeFromList(animeData.id, currentStatus!!)
-                                    currentStatus = null
-                                }
-                                showStatusDialog = false
+                                viewModel.onIntent(TitleIntent.RemoveFromList)
                             },
                             color = MaterialTheme.colorScheme.error
                         )
@@ -384,7 +352,7 @@ fun TitleScreen(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showStatusDialog = false }) {
+                TextButton(onClick = { viewModel.onIntent(TitleIntent.DismissStatusDialog) }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -648,22 +616,19 @@ fun EpisodesTab(anime: Anime) {
 
 @Composable
 fun RecommendationsTab(
-    navController: NavController,
-    repository: itmo.alk.womplist.data.repository.AnimeRepository
+    recommendations: List<Anime>,
+    onAnimeClick: (Long) -> Unit
 ) {
-    val allAnime by repository.allAnime.collectAsState(initial = emptyList())
-    val recs = allAnime.take(3)
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(recs) { anime ->
+        items(recommendations) { anime ->
             AnimeCard(
                 title = anime.russianName ?: anime.name,
                 posterUrl = anime.posterUrl,
-                onClick = { navController.navigate("title/${anime.id}") },
+                onClick = { onAnimeClick(anime.id) },
                 type = AnimeCardType.HORIZONTAL
             )
         }
