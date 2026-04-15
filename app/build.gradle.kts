@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
     id("com.apollographql.apollo") version "4.4.2"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
 }
 
 android {
@@ -56,6 +57,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.foundation)
+
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
