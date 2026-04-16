@@ -6,11 +6,14 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.navigation.NavController
 import itmo.alk.womplist.core.ui.components.*
+import itmo.alk.womplist.core.sdui.ScrollDirection
+import androidx.compose.runtime.snapshotFlow
 
 @Composable
 fun AnimeListRenderer(
@@ -33,8 +36,15 @@ fun AnimeListRenderer(
         LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     if (isLandscape) {
-        LazyVerticalGrid(columns = GridCells.Fixed(2)) {
-            items(state.displayedList) { anime ->
+        val gridState = rememberLazyGridState()
+        ObserveScrollDirection(gridState, state.onScrollDirectionChange)
+
+        LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(state.displayedList, key = { it.id }) { anime ->
                 AnimeCard(
                     title = anime.russianName ?: anime.name,
                     posterUrl = anime.posterUrl,
@@ -44,8 +54,14 @@ fun AnimeListRenderer(
             }
         }
     } else {
-        LazyColumn {
-            items(state.displayedList) { anime ->
+        val listState = rememberLazyListState()
+        ObserveScrollDirection(listState, state.onScrollDirectionChange)
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(state.displayedList, key = { it.id }) { anime ->
                 AnimeCard(
                     title = anime.russianName ?: anime.name,
                     posterUrl = anime.posterUrl,
@@ -56,3 +72,87 @@ fun AnimeListRenderer(
         }
     }
 }
+
+private data class ScrollPosition(
+    val index: Int,
+    val offset: Int
+)
+
+@Composable
+private fun ObserveScrollDirection(
+    listState: LazyListState,
+    onDirectionChange: (ScrollDirection) -> Unit
+) {
+    LaunchedEffect(listState) {
+        var previousPosition: ScrollPosition? = null
+        var lastSentDirection: ScrollDirection? = null
+
+        snapshotFlow {
+            ScrollPosition(
+                index = listState.firstVisibleItemIndex,
+                offset = listState.firstVisibleItemScrollOffset
+            )
+        }.collect { currentPosition ->
+            val previous = previousPosition
+            previousPosition = currentPosition
+
+            val direction = when {
+                previous == null -> null
+                currentPosition.index != previous.index -> {
+                    if (currentPosition.index > previous.index) ScrollDirection.Down else ScrollDirection.Up
+                }
+
+                currentPosition.offset != previous.offset -> {
+                    if (currentPosition.offset > previous.offset) ScrollDirection.Down else ScrollDirection.Up
+                }
+
+                else -> null
+            }
+
+            if (direction != null && direction != lastSentDirection) {
+                lastSentDirection = direction
+                onDirectionChange(direction)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ObserveScrollDirection(
+    gridState: LazyGridState,
+    onDirectionChange: (ScrollDirection) -> Unit
+) {
+    LaunchedEffect(gridState) {
+        var previousPosition: ScrollPosition? = null
+        var lastSentDirection: ScrollDirection? = null
+
+        snapshotFlow {
+            ScrollPosition(
+                index = gridState.firstVisibleItemIndex,
+                offset = gridState.firstVisibleItemScrollOffset
+            )
+        }.collect { currentPosition ->
+            val previous = previousPosition
+            previousPosition = currentPosition
+
+            val direction = when {
+                previous == null -> null
+                currentPosition.index != previous.index -> {
+                    if (currentPosition.index > previous.index) ScrollDirection.Down else ScrollDirection.Up
+                }
+
+                currentPosition.offset != previous.offset -> {
+                    if (currentPosition.offset > previous.offset) ScrollDirection.Down else ScrollDirection.Up
+                }
+
+                else -> null
+            }
+
+            if (direction != null && direction != lastSentDirection) {
+                lastSentDirection = direction
+                onDirectionChange(direction)
+            }
+        }
+    }
+}
+

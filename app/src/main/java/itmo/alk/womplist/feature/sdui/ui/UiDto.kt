@@ -7,5 +7,6 @@ import kotlinx.serialization.json.JsonObject
 data class UiDto(
     val type: String,
     val props: JsonObject? = null,
-    val children: List<UiDto>? = null
+    val children: List<UiDto>? = null,
+    val weight: Float? = null
 )

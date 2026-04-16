@@ -1,11 +1,6 @@
 package itmo.alk.womplist.feature.home
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -15,14 +10,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
 import itmo.alk.womplist.core.ui.components.ScreenCornerType
+import itmo.alk.womplist.core.sdui.HomeSduiServer
 import itmo.alk.womplist.data.LocalAnimeRepository
 import itmo.alk.womplist.feature.sdui.actions.ActionHandler
 import itmo.alk.womplist.feature.sdui.registry.ComponentRegistry
@@ -32,6 +30,7 @@ import itmo.alk.womplist.feature.sdui.ui.UiDto
 import itmo.alk.womplist.feature.sdui.ui.UiNode
 import itmo.alk.womplist.feature.sdui.ui.UiParser
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -41,9 +40,14 @@ fun HomeScreen(
     val repository = LocalAnimeRepository.current
     val allAnime by repository.allAnime.collectAsState(initial = emptyList())
 
+    val scope = rememberCoroutineScope()
+    val sduiServer = remember { HomeSduiServer() }
+
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf(emptyList<itmo.alk.womplist.core.model.Anime>()) }
     var isSearching by remember { mutableStateOf(false) }
+    var currentJson by remember { mutableStateOf(sduiServer.initialJson) }
+    var requestGeneration by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
@@ -58,41 +62,28 @@ fun HomeScreen(
     val displayed = if (searchQuery.isNotBlank()) searchResults else allAnime
 
     val state = HomeState(
-        searchQuery,
-        displayed,
-        isSearching,
+        searchQuery = searchQuery,
+        displayedList = displayed,
+        isSearching = isSearching,
         onSearchChange = { searchQuery = it },
-        onSecretTrigger = onSecretTrigger
-    )
+        onSecretTrigger = onSecretTrigger,
+        onScrollDirectionChange = { direction ->
+            requestGeneration += 1
+            val currentGeneration = requestGeneration
 
-    val json = """
-    {
-      "type": "column",
-      "children": [
-        {
-          "type": "header",
-          "props": {
-            "title": "Discover Anime",
-            "showSecret": true
-          }
-        },
-        {
-          "type": "search",
-          "props": {
-            "hint": "Search anime"
-          }
-        },
-        {
-          "type": "anime_list"
+            scope.launch {
+                val response = sduiServer.requestHomeJson(direction)
+                if (currentGeneration == requestGeneration) {
+                    currentJson = response
+                }
+            }
         }
-      ]
-    }
-    """
+    )
 
     val parser = remember { UiParser() }
 
-    val rootNode = remember {
-        val dto = Json.decodeFromString<UiDto>(json)
+    val rootNode = remember(currentJson) {
+        val dto = Json.decodeFromString<UiDto>(currentJson)
         parser.parse(dto)
     }
 
@@ -105,9 +96,7 @@ fun HomeScreen(
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    node.children.forEach {
-                        RenderNode(it, this@apply, ctx)
-                    }
+                    RenderColumnChildren(node.children, this@apply, ctx)
                 }
             }
 
@@ -151,6 +140,69 @@ fun HomeScreen(
         actionHandler = ActionHandler(navController)
     )
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        RenderNode(rootNode, registry, ctx)
+    }
+}
 
-    RenderNode(rootNode, registry, ctx)
+@Composable
+private fun ColumnScope.RenderColumnChildren(
+    children: List<UiNode>,
+    registry: ComponentRegistry,
+    ctx: RenderContext
+) {
+    val footerSearchChildren = children.filter { child ->
+        child is UiNode.Search && (child.weight ?: 0f) > 0f
+    }
+
+    if (footerSearchChildren.isEmpty()) {
+        children.forEach { child ->
+            val childWeight = child.weight
+            val childModifier = if ((childWeight ?: 0f) > 0f) {
+                Modifier
+                    .fillMaxWidth()
+                    .weight(childWeight!!, fill = true)
+            } else {
+                Modifier.fillMaxWidth()
+            }
+
+            Box(modifier = childModifier) {
+                RenderNode(child, registry, ctx)
+            }
+        }
+        return
+    }
+
+    val contentChildren = children.filterNot { child ->
+        child is UiNode.Search && (child.weight ?: 0f) > 0f
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            contentChildren.forEach { child ->
+                val childWeight = child.weight
+                val childModifier = if ((childWeight ?: 0f) > 0f) {
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(childWeight!!, fill = true)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
+
+                Box(modifier = childModifier) {
+                    RenderNode(child, registry, ctx)
+                }
+            }
+        }
+
+        footerSearchChildren.forEach { child ->
+            Box(modifier = Modifier.fillMaxWidth()) {
+                RenderNode(child, registry, ctx)
+            }
+        }
+    }
 }
