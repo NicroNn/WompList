@@ -36,11 +36,10 @@ fun AnimeListRenderer(
         LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     if (isLandscape) {
-        val gridState = rememberLazyGridState()
-        ObserveScrollDirection(gridState, state.onScrollDirectionChange)
+        ObserveScrollDirection(state.gridState, state.onScrollDirectionChange)
 
         LazyVerticalGrid(
-            state = gridState,
+            state = state.gridState,
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize()
         ) {
@@ -54,11 +53,10 @@ fun AnimeListRenderer(
             }
         }
     } else {
-        val listState = rememberLazyListState()
-        ObserveScrollDirection(listState, state.onScrollDirectionChange)
+        ObserveScrollDirection(state.listState, state.onScrollDirectionChange)
 
         LazyColumn(
-            state = listState,
+            state = state.listState,
             modifier = Modifier.fillMaxSize()
         ) {
             items(state.displayedList, key = { it.id }) { anime ->

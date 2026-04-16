@@ -1,6 +1,8 @@
 package itmo.alk.womplist.feature.home
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -12,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -48,6 +51,8 @@ fun HomeScreen(
     var isSearching by remember { mutableStateOf(false) }
     var currentJson by remember { mutableStateOf(sduiServer.initialJson) }
     var requestGeneration by remember { mutableIntStateOf(0) }
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
@@ -65,6 +70,8 @@ fun HomeScreen(
         searchQuery = searchQuery,
         displayedList = displayed,
         isSearching = isSearching,
+        listState = listState,
+        gridState = gridState,
         onSearchChange = { searchQuery = it },
         onSecretTrigger = onSecretTrigger,
         onScrollDirectionChange = { direction ->
@@ -151,12 +158,15 @@ private fun ColumnScope.RenderColumnChildren(
     registry: ComponentRegistry,
     ctx: RenderContext
 ) {
+    val keyCounters = mutableMapOf<String, Int>()
+
     val footerSearchChildren = children.filter { child ->
         child is UiNode.Search && (child.weight ?: 0f) > 0f
     }
 
     if (footerSearchChildren.isEmpty()) {
         children.forEach { child ->
+            val childKey = nextRenderKey(child, keyCounters)
             val childWeight = child.weight
             val childModifier = if ((childWeight ?: 0f) > 0f) {
                 Modifier
@@ -166,8 +176,10 @@ private fun ColumnScope.RenderColumnChildren(
                 Modifier.fillMaxWidth()
             }
 
-            Box(modifier = childModifier) {
-                RenderNode(child, registry, ctx)
+            key(childKey) {
+                Box(modifier = childModifier) {
+                    RenderNode(child, registry, ctx)
+                }
             }
         }
         return
@@ -184,6 +196,7 @@ private fun ColumnScope.RenderColumnChildren(
                 .fillMaxWidth()
         ) {
             contentChildren.forEach { child ->
+                val childKey = nextRenderKey(child, keyCounters)
                 val childWeight = child.weight
                 val childModifier = if ((childWeight ?: 0f) > 0f) {
                     Modifier
@@ -193,16 +206,34 @@ private fun ColumnScope.RenderColumnChildren(
                     Modifier.fillMaxWidth()
                 }
 
-                Box(modifier = childModifier) {
-                    RenderNode(child, registry, ctx)
+                key(childKey) {
+                    Box(modifier = childModifier) {
+                        RenderNode(child, registry, ctx)
+                    }
                 }
             }
         }
 
         footerSearchChildren.forEach { child ->
-            Box(modifier = Modifier.fillMaxWidth()) {
-                RenderNode(child, registry, ctx)
+            val childKey = nextRenderKey(child, keyCounters)
+            key(childKey) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    RenderNode(child, registry, ctx)
+                }
             }
         }
     }
+}
+
+private fun nextRenderKey(child: UiNode, counters: MutableMap<String, Int>): String {
+    val baseKey = when (child) {
+        is UiNode.Header -> "header:${child.title}:${child.showSecret}:${child.weight ?: 0f}"
+        is UiNode.Search -> "search:${child.hint}:${child.weight ?: 0f}"
+        is UiNode.AnimeList -> "anime_list:${child.weight ?: 0f}"
+        is UiNode.Column -> "column:${child.weight ?: 0f}:size=${child.children.size}"
+    }
+
+    val ordinal = counters.getOrDefault(baseKey, 0)
+    counters[baseKey] = ordinal + 1
+    return "$baseKey#$ordinal"
 }
