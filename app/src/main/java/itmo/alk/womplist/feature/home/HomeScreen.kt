@@ -1,32 +1,31 @@
 package itmo.alk.womplist.feature.home
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import itmo.alk.womplist.R
-import itmo.alk.womplist.core.model.Anime
-import itmo.alk.womplist.core.ui.components.AnimeCard
-import itmo.alk.womplist.core.ui.components.AnimeCardType
-import itmo.alk.womplist.core.ui.components.EmptyState
-import itmo.alk.womplist.core.ui.components.ScreenCornerAnimation
-import itmo.alk.womplist.core.ui.components.ScreenCornerType
+import itmo.alk.womplist.core.sdui.HomeSduiServer
 import itmo.alk.womplist.data.LocalAnimeRepository
+import itmo.alk.womplist.feature.sdui.actions.ActionHandler
+import itmo.alk.womplist.feature.sdui.registry.createHomeComponentRegistry
+import itmo.alk.womplist.feature.sdui.renderer.RenderContext
+import itmo.alk.womplist.feature.sdui.renderer.RenderNode
+import itmo.alk.womplist.feature.sdui.renderer.SduiStyleResolver
+import itmo.alk.womplist.feature.sdui.ui.UiDto
+import itmo.alk.womplist.feature.sdui.ui.UiParser
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -35,9 +34,16 @@ fun HomeScreen(
     val repository = LocalAnimeRepository.current
     val allAnime by repository.allAnime.collectAsState(initial = emptyList())
 
+    val scope = rememberCoroutineScope()
+    val sduiServer = remember { HomeSduiServer() }
+
     var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<Anime>>(emptyList()) }
+    var searchResults by remember { mutableStateOf(emptyList<itmo.alk.womplist.core.model.Anime>()) }
     var isSearching by remember { mutableStateOf(false) }
+    var currentJson by remember { mutableStateOf(sduiServer.initialJson) }
+    var requestGeneration by remember { mutableIntStateOf(0) }
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
@@ -49,82 +55,58 @@ fun HomeScreen(
         }
     }
 
-    val displayedList = if (searchQuery.isNotBlank()) searchResults else allAnime
+    val displayed = if (searchQuery.isNotBlank()) searchResults else allAnime
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .padding(horizontal = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.discover_anime),
-                style = MaterialTheme.typography.headlineSmall
-            )
-            ScreenCornerAnimation(
-                type = ScreenCornerType.HOME,
-                onSecretTrigger = onSecretTrigger
-            )
+    val state = HomeState(
+        searchQuery = searchQuery,
+        displayedList = displayed,
+        isSearching = isSearching,
+        listState = listState,
+        gridState = gridState,
+        onSearchChange = { searchQuery = it },
+        onSecretTrigger = onSecretTrigger,
+        onScrollDirectionChange = { direction ->
+            requestGeneration += 1
+            val currentGeneration = requestGeneration
+
+            scope.launch {
+                val response = sduiServer.requestHomeJson(direction)
+                if (currentGeneration == requestGeneration) {
+                    currentJson = response
+                }
+            }
         }
+    )
 
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text(stringResource(R.string.search_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+    val parser = remember { UiParser() }
+    var rootNode by remember {
+        mutableStateOf(
+            parser.parse(Json.decodeFromString<UiDto>(sduiServer.initialJson))
         )
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (isSearching) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (displayedList.isEmpty()) {
-            EmptyState(message = stringResource(R.string.no_results))
-        } else {
-            val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-            if (isLandscape) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(displayedList) { anime ->
-                        AnimeCard(
-                            title = anime.russianName ?: anime.name,
-                            posterUrl = anime.posterUrl,
-                            onClick = { navController.navigate("title/${anime.id}") },
-                            type = AnimeCardType.VERTICAL
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(displayedList) { anime ->
-                        AnimeCard(
-                            title = anime.russianName ?: anime.name,
-                            posterUrl = anime.posterUrl,
-                            onClick = { navController.navigate("title/${anime.id}") },
-                            type = AnimeCardType.HORIZONTAL
-                        )
-                    }
-                }
-            }
+    LaunchedEffect(currentJson) {
+        runCatching {
+            val dto = Json.decodeFromString<UiDto>(currentJson)
+            parser.parse(dto)
+        }.onSuccess { parsedNode ->
+            rootNode = parsedNode
         }
     }
+
+    val styleResolver = remember { SduiStyleResolver() }
+    val registry = remember(styleResolver) {
+        createHomeComponentRegistry(styleResolver)
+    }
+
+    val ctx = RenderContext(
+        navController = navController,
+        state = state,
+        actionHandler = ActionHandler(navController)
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        RenderNode(rootNode, registry, ctx)
+    }
 }
+
