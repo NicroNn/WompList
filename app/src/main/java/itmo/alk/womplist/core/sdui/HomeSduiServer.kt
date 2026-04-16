@@ -12,9 +12,15 @@ class HomeSduiServer {
     val initialJson: String = """
     {
       "type": "column",
+      "style": {
+        "density": "regular"
+      },
       "children": [
         {
           "type": "header",
+          "style": {
+            "variant": "hero"
+          },
           "props": {
             "title": "Discover Anime",
             "showSecret": true
@@ -22,8 +28,11 @@ class HomeSduiServer {
         },
         {
           "type": "search",
+          "style": {
+            "variant": "outlined"
+          },
           "props": {
-            "hint": "Search anime"
+            "hint": "Search anime up"
           }
         },
         {
@@ -36,9 +45,15 @@ class HomeSduiServer {
     private val footerSearchJson: String = """
     {
       "type": "column",
+      "style": {
+        "density": "regular"
+      },
       "children": [
         {
           "type": "header",
+          "style": {
+            "variant": "hero"
+          },
           "props": {
             "title": "Discover Anime",
             "showSecret": true
@@ -50,8 +65,11 @@ class HomeSduiServer {
         {
           "type": "search",
           "weight": 1,
+          "style": {
+            "variant": "filled"
+          },
           "props": {
-            "hint": "Search anime"
+            "hint": "Search anime down"
           }
         }
       ]
